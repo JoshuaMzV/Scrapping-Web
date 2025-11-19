@@ -9,6 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import os
 import re
 import time
+import gc
 from datetime import datetime
 import subprocess
 import shutil
@@ -229,19 +230,33 @@ def update():
         # Usar URL hardcodeada
         usuario = GITHUB_REPO_OWNER
         repo = GITHUB_REPO_NAME
+        project_root = os.path.dirname(__file__)
         
-        # Crear carpeta temporal
-        temp_dir = os.path.join(os.path.dirname(__file__), 'temp_update')
+        # Crear carpeta temporal con timestamp
+        from datetime import datetime as dt_now
+        temp_timestamp = dt_now.now().strftime('%Y%m%d_%H%M%S')
+        temp_dir = os.path.join(project_root, f'temp_update_{temp_timestamp}')
+        
+        # Limpiar directorio temporal si existe (con reintentos)
         if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        os.makedirs(temp_dir)
+            for attempt in range(3):
+                try:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    time.sleep(0.5)
+                    if not os.path.exists(temp_dir):
+                        break
+                except:
+                    pass
+        
+        os.makedirs(temp_dir, exist_ok=True)
 
-        # Clonar repositorio
+        # Clonar repositorio - usar shallow clone para más velocidad
         clone_url = f"https://github.com/{usuario}/{repo}.git"
-        resultado = subprocess.run(['git', 'clone', clone_url, temp_dir], 
+        resultado = subprocess.run(['git', 'clone', '--depth', '1', clone_url, temp_dir], 
                                  capture_output=True, text=True, timeout=60)
 
         if resultado.returncode != 0:
+            print(f"❌ Error clonando: {resultado.stderr}")
             return jsonify({'success': False, 'message': 'Error clonando repositorio'}), 400
 
         # Copiar archivos importantes
@@ -254,25 +269,34 @@ def update():
             'requirements.txt',
             'docs/'
         ]
-
-        project_root = os.path.dirname(__file__)
         
         for archivo in archivos_copiar:
             src = os.path.join(temp_dir, archivo)
             dst = os.path.join(project_root, archivo)
             
             if os.path.exists(src):
-                if os.path.isdir(src):
-                    print(f"  📁 Actualizando carpeta: {archivo}")
-                    if os.path.exists(dst):
-                        shutil.rmtree(dst)
-                    shutil.copytree(src, dst)
-                else:
-                    print(f"  📄 Actualizando archivo: {archivo}")
-                    shutil.copy2(src, dst)
+                try:
+                    if os.path.isdir(src):
+                        print(f"  📁 Actualizando carpeta: {archivo}")
+                        if os.path.exists(dst):
+                            shutil.rmtree(dst, ignore_errors=True)
+                        shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git*'))
+                    else:
+                        print(f"  📄 Actualizando archivo: {archivo}")
+                        os.makedirs(os.path.dirname(dst), exist_ok=True)
+                        shutil.copy2(src, dst)
+                except Exception as e:
+                    print(f"  ⚠️  Error copiando {archivo}: {e}")
 
-        # Limpiar
-        shutil.rmtree(temp_dir)
+        # Limpiar temp_dir más agresivamente
+        import gc
+        gc.collect()
+        time.sleep(1)
+        
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except:
+            pass
 
         print(f"\n✅ Actualización completada desde: {GITHUB_REPO_URL}")
         return jsonify({
@@ -282,10 +306,13 @@ def update():
         }), 200
 
     except subprocess.TimeoutExpired:
-        return jsonify({'success': False, 'message': 'Timeout en descarga'}), 400
+        print("❌ Timeout en descarga de GitHub")
+        return jsonify({'success': False, 'message': 'Timeout en descarga (conexión lenta)'}), 400
     except Exception as e:
         print(f"❌ Error en actualización: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
