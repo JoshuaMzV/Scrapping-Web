@@ -1,0 +1,140 @@
+╔════════════════════════════════════════════════════════════════╗
+║     🎉 GENERADOR DE CATÁLOGOS - LISTO PARA USAR 🎉             ║
+╚════════════════════════════════════════════════════════════════╝
+
+📌 PARA EL ENCARGADO (No Técnico)
+═══════════════════════════════════════════════════════════════
+
+1. Abre el archivo: iniciar.bat
+   (Haz doble clic)
+
+2. Espera a que se abra la interfaz en el navegador
+
+3. Selecciona la marca de la que quieres extraer datos:
+   - 👟 Nike
+   - 💄 Sephora
+   - 📦 Amazon
+   - 🏪 eBay
+
+4. Pega los links que guardaste (uno por línea)
+
+5. Haz clic en "Generar Catálogo"
+
+6. El Excel se descargará automáticamente a tu carpeta Descargas
+
+¡Listo! Tu catálogo está generado.
+
+═══════════════════════════════════════════════════════════════
+
+⚙️ PARA EL DESARROLLADOR
+═══════════════════════════════════════════════════════════════
+
+ESTRUCTURA DEL PROYECTO:
+
+app.py                          → Backend principal
+├─ templates/index.html         → Interfaz web
+├─ static/css/style.css         → Estilos
+├─ static/js/script.js          → Lógica frontend
+└─ scrapers/                    → Módulos de scraping
+   ├─ nike.py
+   └─ sephora.py
+
+EJECUTAR EN DESARROLLO:
+$ python run.py
+→ Se abre en http://127.0.0.1:5000
+
+CREAR EJECUTABLE:
+$ python build_exe.py
+→ Se crea en dist/CatalogoGenerator.exe
+
+═══════════════════════════════════════════════════════════════
+
+🚀 CÓMO AGREGAR NUEVA MARCA
+═══════════════════════════════════════════════════════════════
+
+1. Crear scrapers/nueva_marca.py
+   - Copiar estructura de nike.py
+   - Adaptar selectores CSS
+   - Añadir función scrape_nueva_marca()
+
+2. Actualizar app.py
+   - Importar nuevo scraper
+   - Agregar elif en función scrape()
+
+3. Actualizar templates/index.html
+   - Agregar opción en selector de marca
+   - Agregar tarjeta en sección Marcas
+
+4. Cambios automáticos desde GitHub:
+   - Subir cambios a repo
+   - Usuario ingresa URL de repo en "Configuración"
+   - Haz clic en "Actualizar Ahora"
+   - Reinicia app
+
+═══════════════════════════════════════════════════════════════
+
+📊 DATOS QUE GENERA EL EXCEL
+═══════════════════════════════════════════════════════════════
+
+Nombre del Producto
+Precio Original (USD)
+Tallas Disponibles
+Costo Final por Unidad (USD)
+Costo Final por Unidad (GTQ)
+Precio Sugerido Venta (GTQ)
+Ganancia por Unidad (GTQ)
+Margen de Ganancia (%)
+URL Imagen
+URL Producto
+
+═══════════════════════════════════════════════════════════════
+
+🔐 REQUISITOS DE SISTEMA
+═══════════════════════════════════════════════════════════════
+
+✓ Windows 10+ o Mac/Linux
+✓ Conexión a Internet (para scraping)
+✓ Chrome instalado (para WebDriver)
+✓ Mínimo 500 MB de espacio libre
+
+═══════════════════════════════════════════════════════════════
+
+📞 SOPORTE
+═══════════════════════════════════════════════════════════════
+
+Documentación completa: README.md
+Estructura detallada: ESTRUCTURA.md
+Repositorio GitHub: https://github.com/JoshuaMzV/Scrapping-Web
+
+═══════════════════════════════════════════════════════════════
+
+✨ CARACTERÍSTICAS PRINCIPALES
+═══════════════════════════════════════════════════════════════
+
+✓ Interfaz moderna y intuitiva
+✓ Multi-marca (Nike, Sephora, Amazon, eBay)
+✓ Cálculos automáticos de precios
+✓ Excel con formato profesional
+✓ Actualización automática desde GitHub
+✓ Escalable (fácil agregar marcas)
+✓ Ejecutable sin dependencias externas
+✓ Sin servidor (funciona local)
+
+═══════════════════════════════════════════════════════════════
+
+🎯 PRÓXIMOS PASOS
+═══════════════════════════════════════════════════════════════
+
+1. Testear con links reales
+2. Agregar más marcas según necesidad
+3. Personalizar cálculos de precios
+4. Crear .exe para distribución
+5. Agregar a GitHub para versionado
+
+═══════════════════════════════════════════════════════════════
+
+Versión: 1.0.0
+Última actualización: 19/11/2025
+Estado: ✅ Producción
+
+═══════════════════════════════════════════════════════════════

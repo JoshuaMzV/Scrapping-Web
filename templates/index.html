@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Catálogos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="logo">📦 Catálogo Generator</div>
+            <ul class="nav-menu">
+                <li><a href="#home" class="nav-link active">Inicio</a></li>
+                <li><a href="#marcas" class="nav-link">Marcas</a></li>
+                <li><a href="#settings" class="nav-link">⚙️ Configuración</a></li>
+            </ul>
+            <div class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        <!-- SECTION: HOME -->
+        <section id="home" class="section active">
+            <div class="card">
+                <h1>🚀 Generador de Catálogos por Marca</h1>
+                <p>Selecciona una marca e ingresa links de CUALQUIER sitio donde se venda (Nike.com, Amazon, eBay, etc.)</p>
+                
+                <!-- SELECTOR DE MARCA -->
+                <div class="form-group">
+                    <label for="marca">Selecciona Marca:</label>
+                    <select id="marca" class="form-control">
+                        <option value="">-- Seleccionar --</option>
+                        <option value="nike">👟 Nike (links de Nike.com, Amazon, eBay, etc.)</option>
+                        <option value="sephora">💄 Sephora (links de Sephora.com, Amazon, eBay, etc.)</option>
+                    </select>
+                </div>
+
+                <!-- TEXTAREA PARA LINKS -->
+                <div class="form-group">
+                    <label for="links">Pega los links aquí (uno por línea):</label>
+                    <p class="hint">💡 Puedes mezclar links de diferentes sitios. El sistema detectará automáticamente dónde está cada producto.</p>
+                    <textarea id="links" class="form-control textarea" placeholder="https://nike.com/...&#10;https://amazon.com/product/...&#10;https://ebay.com/itm/..."></textarea>
+                </div>
+
+                <!-- BOTONES -->
+                <div class="button-group">
+                    <button id="btnGenerar" class="btn btn-primary">🔄 Generar Catálogo</button>
+                    <button id="btnLimpiar" class="btn btn-secondary">🗑️ Limpiar</button>
+                </div>
+
+                <!-- BARRA DE PROGRESO -->
+                <div id="progressContainer" class="progress-container" style="display: none;">
+                    <div class="progress-bar" id="progressBar">
+                        <span id="progressText">0%</span>
+                    </div>
+                    <p id="statusText" class="status-text">Iniciando...</p>
+                </div>
+
+                <!-- RESULTADO -->
+                <div id="resultContainer" class="result-container" style="display: none;">
+                    <div id="successMessage" class="alert alert-success" style="display: none;">
+                        ✅ <strong>¡Éxito!</strong> El catálogo se está descargando...
+                    </div>
+                    <div id="errorMessage" class="alert alert-error" style="display: none;">
+                        ❌ <strong>Error:</strong> <span id="errorText"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: MARCAS -->
+        <section id="marcas" class="section">
+            <div class="card">
+                <h2>📋 Marcas Disponibles</h2>
+                <div class="marcas-grid">
+                    <div class="marca-card">
+                        <h3>👟 Nike</h3>
+                        <p>Productos Nike de cualquier sitio:</p>
+                        <ul style="text-align: left; font-size: 0.9em;">
+                            <li>Nike.com</li>
+                            <li>Amazon</li>
+                            <li>eBay</li>
+                            <li>Y más...</li>
+                        </ul>
+                        <span class="badge">Activo</span>
+                    </div>
+                    <div class="marca-card">
+                        <h3>💄 Sephora</h3>
+                        <p>Productos Sephora de cualquier sitio:</p>
+                        <ul style="text-align: left; font-size: 0.9em;">
+                            <li>Sephora.com</li>
+                            <li>Amazon</li>
+                            <li>eBay</li>
+                            <li>Y más...</li>
+                        </ul>
+                        <span class="badge">Activo</span>
+                    </div>
+                </div>
+                <div class="info-box">
+                    <h3>ℹ️ ¿Cómo funciona?</h3>
+                    <p>1. Selecciona la marca (Nike, Sephora, etc.)</p>
+                    <p>2. Pega links de esa marca de <strong>cualquier sitio</strong> donde se venda</p>
+                    <p>3. El sistema detecta automáticamente en qué sitio está cada producto</p>
+                    <p>4. Genera un único Excel con todos los datos y precios calculados</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION: CONFIGURACIÓN -->
+        <section id="settings" class="section">
+            <div class="card">
+                <h2>⚙️ Configuración & Actualización</h2>
+                
+                <div class="settings-group">
+                    <h3>🔄 Actualizar desde GitHub</h3>
+                    <p>Descarga las últimas actualizaciones directamente desde el repositorio oficial:</p>
+                    
+                    <div class="info-box" style="background: #e3f2fd; border-left: 4px solid #2196F3; padding: 15px; margin: 15px 0;">
+                        <p><strong>📍 Repositorio:</strong> <a href="https://github.com/JoshuaMzV/Scrapping-Web" target="_blank" style="color: #2196F3;">https://github.com/JoshuaMzV/Scrapping-Web</a></p>
+                        <p style="margin: 10px 0; font-size: 0.9em; color: #666;">La URL está configurada automáticamente. Solo haz clic en "Actualizar Ahora" para descargar los cambios más recientes.</p>
+                    </div>
+
+                    <button id="btnActualizar" class="btn btn-primary">🔄 Actualizar Ahora</button>
+                    
+                    <div id="updateContainer" class="result-container" style="display: none; margin-top: 20px;">
+                        <div id="updateSuccess" class="alert alert-success" style="display: none;">
+                            ✅ <strong>Actualización completada</strong>. Por favor reinicia la aplicación para aplicar los cambios.
+                        </div>
+                        <div id="updateError" class="alert alert-error" style="display: none;">
+                            ❌ <strong>Error en actualización:</strong> <span id="updateErrorText"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="settings-group">
+                    <h3>ℹ️ Información del Sistema</h3>
+                    <p><strong>Versión:</strong> 1.0.0</p>
+                    <p><strong>Última actualización:</strong> <span id="lastUpdate">19/11/2025</span></p>
+                    <p><strong>Estado:</strong> ✅ Conectado a GitHub</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <p>© 2025 Catálogo Generator | Desarrollado por Joshua Mendez</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
