@@ -30,9 +30,11 @@ packages = [
 ]
 
 # Agregar templates y static manualmente
-# SPECPATH es el directorio donde está este archivo .spec
-datas.append((os.path.join(SPECPATH, 'templates'), 'templates'))
-datas.append((os.path.join(SPECPATH, 'static'), 'static'))
+# Usar el directorio actual de trabajo que será la raíz del proyecto
+import os
+basedir = os.path.abspath('.')
+datas.append((os.path.join(basedir, 'templates'), 'templates'))
+datas.append((os.path.join(basedir, 'static'), 'static'))
 
 # Recopilar TODO de cada paquete (datos, binarios, submódulos)
 for pkg in packages:
@@ -68,7 +70,7 @@ hiddenimports += [
 
 a = Analysis(
     ['app.py'],
-    pathex=[SPECPATH],
+    pathex=[basedir],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
