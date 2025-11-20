@@ -30,7 +30,7 @@ packages = [
 ]
 
 # Agregar templates y static manualmente
-project_root = r'D:\Documentos Joshua\VS\scraping_project\scraping_project'
+project_root = os.getcwd()  # Usar directorio actual en vez de SPECPATH
 datas.append((os.path.join(project_root, 'templates'), 'templates'))
 datas.append((os.path.join(project_root, 'static'), 'static'))
 
