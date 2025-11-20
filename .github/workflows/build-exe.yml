@@ -50,57 +50,40 @@ jobs:
     - name: Extract version from settings
       id: version
       run: |
-        $version = (Select-String -Path "src/config/settings.py" -Pattern "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value })
-        Write-Host "VERSION=$version" >> $env:GITHUB_OUTPUT
-        Write-Host "📌 Version detected: $version"
+        $content = Get-Content "src/config/settings.py"
+        $version = $content | Select-String "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value }
+        "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        Write-Host "Version detected: $version"
     
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.version.outputs.VERSION }}
-        release_name: Catálogo Generator v${{ steps.version.outputs.VERSION }}
+        name: "Catálogo Generator v${{ steps.version.outputs.VERSION }}"
         draft: false
         prerelease: false
+        files: dist/CatalogoGenerator.exe
         body: |
-          ## 🚀 Catálogo Generator v${{ steps.version.outputs.VERSION }}
+          ## Catálogo Generator v${{ steps.version.outputs.VERSION }}
           
-          ### 📥 Descargar
-          - **CatalogoGenerator.exe** - Aplicación completa con interfaz gráfica
+          ### Descargar
+          - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
           
-          ### ✨ Características
-          - ✅ Scraping automático (Nike, Sephora)
-          - ✅ Generación de Excel con precios calculados
-          - ✅ Interfaz web integrada
-          - ✅ Actualización automática desde GitHub
+          ### Características
+          - Scraping automático de Nike y Sephora
+          - Generación de Excel con precios
+          - Interfaz web integrada
+          - Actualizaciones automáticas
           
-          ### 🔧 Instalación
-          1. Descarga `CatalogoGenerator.exe`
+          ### Instalación
+          1. Descarga CatalogoGenerator.exe
           2. Ejecuta el archivo
-          3. El navegador se abrirá automáticamente en http://127.0.0.1:5000
+          3. Se abrirá automáticamente en http://127.0.0.1:5000
           
-          ### 📝 Notas
-          - Requiere conexión a internet para scraping
-          - Los datos se guardan en: `C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\`
-          - Las actualizaciones se descarga automáticamente
+          ### Notas
+          - Los archivos se guardan en: C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\
+          - Las actualizaciones se descargan automáticamente
           
-          ---
-          Compilado automáticamente por GitHub Actions
-    
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
+          Compilado por GitHub Actions
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/CatalogoGenerator.exe
-        asset_name: CatalogoGenerator-v${{ steps.version.outputs.VERSION }}.exe
-        asset_content_type: application/vnd.microsoft.portable-executable
-    
-    - name: Upload Release Success
-      run: |
-        Write-Host "✅ Release created successfully!"
-        Write-Host "📦 Asset: CatalogoGenerator-v${{ steps.version.outputs.VERSION }}.exe"
-        Write-Host "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.VERSION }}"
