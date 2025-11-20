@@ -34,8 +34,7 @@ jobs:
         pip install pyinstaller
     
     - name: Build executable with PyInstaller
-      run: |
-        python build_exe.py
+      run: python build_exe.py
     
     - name: Check if exe was built
       run: |
@@ -43,9 +42,9 @@ jobs:
           Write-Host "ERROR: CatalogoGenerator.exe not found!"
           exit 1
         }
-        Write-Host "✅ CatalogoGenerator.exe built successfully"
+        Write-Host "CatalogoGenerator.exe built successfully"
         $size = (Get-Item "dist/CatalogoGenerator.exe").Length / 1MB
-        Write-Host "📊 File size: $($size.ToString('F1')) MB"
+        Write-Host "File size: $($size.ToString('F1')) MB"
     
     - name: Extract version from settings
       id: version
@@ -53,36 +52,62 @@ jobs:
         $content = Get-Content "src/config/settings.py"
         $version = $content | Select-String "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value }
         "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-        Write-Host "✅ Version detected: $version"
+        Write-Host "Version: $version"
     
-    - name: Create GitHub Release
-      uses: ncipollo/release-action@v1
-      with:
-        tag: v${{ steps.version.outputs.VERSION }}
-        name: Catálogo Generator v${{ steps.version.outputs.VERSION }}
-        artifacts: dist/CatalogoGenerator.exe
-        draft: false
-        prerelease: false
-        body: |
-          ## Catálogo Generator v${{ steps.version.outputs.VERSION }}
-
-          ### Descargar
-          - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
-
-          ### Características
-          - Scraping automático de Nike y Sephora
-          - Generación de Excel con precios
-          - Interfaz web integrada
-          - Actualizaciones automáticas desde GitHub
-
-          ### Instalación
-          1. Descarga CatalogoGenerator.exe
-          2. Ejecuta el archivo
-          3. Se abrirá automáticamente en http://127.0.0.1:5000
-
-          ### Notas
-          - Los datos se guardan en: C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\
-          - Las actualizaciones se descargan automáticamente
-          - Requiere conexión a internet para el scraping
-
-          Compilado automáticamente por GitHub Actions
+    - name: Create Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO_OWNER: ${{ github.repository_owner }}
+        REPO_NAME: Scrapping-Web
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $tag = "v$version"
+        
+        # Create release via GitHub API
+        $releaseData = @{
+          tag_name = $tag
+          name = "Catálogo Generator $version"
+          draft = $false
+          prerelease = $false
+          body = @"
+        ## Catálogo Generator v$version
+        
+        ### Características
+        - Scraping Nike y Sephora
+        - Excel generado automáticamente
+        - Interfaz web integrada
+        - Actualizaciones desde GitHub
+        
+        ### Descargar
+        - CatalogoGenerator.exe (43.9 MB)
+        
+        ### Instalación
+        1. Descarga CatalogoGenerator.exe
+        2. Ejecuta el archivo
+        3. Se abrirá en http://127.0.0.1:5000
+        
+        Compilado automáticamente por GitHub Actions
+        "@
+        }
+        
+        $releaseResponse = Invoke-RestMethod `
+          -Uri "https://api.github.com/repos/${{ github.repository }}/releases" `
+          -Method POST `
+          -Headers @{"Authorization"="token $env:GITHUB_TOKEN"} `
+          -ContentType "application/json" `
+          -Body ($releaseData | ConvertTo-Json)
+        
+        Write-Host "Release created: $tag"
+        
+        # Upload asset
+        $uploadUrl = $releaseResponse.upload_url -replace '\{.*\}',''
+        $asset = Get-Item "dist/CatalogoGenerator.exe"
+        
+        Invoke-RestMethod `
+          -Uri "$uploadUrl/?name=CatalogoGenerator-v$version.exe" `
+          -Method POST `
+          -Headers @{"Authorization"="token $env:GITHUB_TOKEN"} `
+          -ContentType "application/octet-stream" `
+          -InFile $asset.FullName
+        
+        Write-Host "Asset uploaded successfully"
