@@ -132,7 +132,7 @@ function descargarExcel(filename, excelBase64) {
 // Actualizar desde GitHub
 async function actualizarDesdeGitHub() {
     // Confirmar actualización
-    if (!confirm('¿Descargar e instalar las últimas actualizaciones de GitHub?\n\nLa aplicación se reiniciará automáticamente después.')) {
+    if (!confirm('¿Descargar e instalar las últimas actualizaciones de GitHub?\n\nLa página se recargará para aplicar los cambios.')) {
         return;
     }
 
@@ -145,43 +145,18 @@ async function actualizarDesdeGitHub() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({})  // No se envía URL, está hardcodeada en el backend
+            body: JSON.stringify({})
         });
 
         const data = await response.json();
 
         if (data.success) {
-            mostrarExitoActualizacion('✅ Actualización descargada. La aplicación se está reiniciando...');
+            mostrarExitoActualizacion('✅ Actualización descargada correctamente.\n\nRecargando la página...');
             
-            // Esperar a que la app se reinicie (5 segundos)
-            console.log('⏳ Esperando reinicio de la aplicación...');
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            
-            // Intentar reconectar (máximo 10 intentos, cada 1 segundo)
-            let intentos = 0;
-            const reconectar = setInterval(() => {
-                intentos++;
-                fetch('/health')
-                    .then(response => {
-                        if (response.ok) {
-                            clearInterval(reconectar);
-                            console.log('✅ Aplicación reiniciada correctamente');
-                            mostrarExitoActualizacion('✅ ¡Actualización completada! La aplicación se ha reiniciado.\n\nPor favor recarga la página para ver los cambios.');
-                            
-                            // Recargar página después de 2 segundos
-                            setTimeout(() => {
-                                location.reload();
-                            }, 2000);
-                        }
-                    })
-                    .catch(() => {
-                        if (intentos >= 10) {
-                            clearInterval(reconectar);
-                            console.log('⚠️ No se pudo reconectar. Por favor recarga manualmente.');
-                            mostrarExitoActualizacion('✅ Actualización completada.\n\nPor favor recarga la página manualmente (F5 o Ctrl+R).');
-                        }
-                    });
-            }, 1000);
+            // Recargar página después de 2 segundos
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
         } else {
             mostrarErrorActualizacion(data.message || 'Error al actualizar');
         }

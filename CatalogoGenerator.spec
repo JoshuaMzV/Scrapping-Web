@@ -10,7 +10,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[('templates', 'templates'), ('static', 'static')],
+    datas=[('D:\\Documentos Joshua\\VS\\scraping_project\\scraping_project\\templates', 'templates'), ('D:\\Documentos Joshua\\VS\\scraping_project\\scraping_project\\static', 'static')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

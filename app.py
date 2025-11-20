@@ -320,21 +320,40 @@ def update():
 
         print(f"\n✅ Actualización completada desde: {GITHUB_REPO_URL}")
         
-        # Reiniciar la aplicación en background después de enviar respuesta
-        def reiniciar_app():
+        # NO cerrar el proceso - solo recargar módulos
+        def recargar_modulos():
             import time
-            time.sleep(2)  # Dar tiempo a que se envíe la respuesta
-            print("\n🔄 Reiniciando aplicación con cambios actualizados...")
-            cerrar_driver()
-            os_module._exit(0)  # Cerrar el proceso para que se reinicie
+            time.sleep(1)  # Dar tiempo a que se envíe la respuesta
+            print("\n🔄 Recargando módulos actualizados...")
+            
+            try:
+                # Recargar módulos Python
+                import importlib
+                import sys
+                
+                # Recargar scrapers
+                if 'scrapers.nike' in sys.modules:
+                    importlib.reload(sys.modules['scrapers.nike'])
+                if 'scrapers.sephora' in sys.modules:
+                    importlib.reload(sys.modules['scrapers.sephora'])
+                
+                # Recargar config
+                if 'src.config.settings' in sys.modules:
+                    importlib.reload(sys.modules['src.config.settings'])
+                
+                print("✅ Módulos recargados correctamente")
+                print("✅ Los cambios estarán disponibles en la próxima solicitud")
+                
+            except Exception as e:
+                print(f"⚠️ Error recargando módulos: {e}")
         
         from threading import Thread
-        thread = Thread(target=reiniciar_app, daemon=True)
+        thread = Thread(target=recargar_modulos, daemon=True)
         thread.start()
         
         return jsonify({
             'success': True, 
-            'message': 'Actualización completada. La aplicación se reiniciará automáticamente.',
+            'message': 'Actualización completada. Los cambios están listos. Recarga la página para verlos.',
             'version': VERSION
         }), 200
 
