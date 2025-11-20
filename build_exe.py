@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Script para compilar el proyecto a ejecutable con PyInstaller
 Uso: python build_exe.py
@@ -9,6 +10,9 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
+
+# Asegurar que stdout usa UTF-8
+sys.stdout.reconfigure(encoding='utf-8') if hasattr(sys.stdout, 'reconfigure') else None
 
 def build_exe():
     """Compilar proyecto a .exe"""

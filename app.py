@@ -30,7 +30,6 @@ from src.config.settings import GITHUB_REPO_URL, GITHUB_REPO_OWNER, GITHUB_REPO_
 # Configurar rutas de templates y static según si hay actualizaciones
 template_folder = 'templates'
 static_folder = 'static'
-static_url_path = '/static'
 
 # Si hay archivos actualizados en DATA_DIR, usarlos
 if DATA_DIR != os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))):
@@ -41,9 +40,9 @@ if DATA_DIR != os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
         template_folder = external_templates
     if os.path.exists(external_static):
         static_folder = external_static
-        static_url_path = os.path.join(DATA_DIR, 'static')
 
-app = Flask(__name__, template_folder=template_folder, static_folder=static_folder, static_url_path=static_url_path)
+# Flask siempre usa /static como URL path (no la ruta del sistema)
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder, static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.expanduser('~'), 'Downloads')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
 
