@@ -1,0 +1,75 @@
+name: Build GUI .exe (PyQt6)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Build .exe with PyInstaller
+      run: |
+        pyinstaller CatalogoGenerator_GUI.spec --distpath dist --workpath build --clean
+
+    - name: Verify .exe exists
+      run: |
+        if (Test-Path "dist/CatalogoGenerator.exe") {
+          Write-Host "✅ CatalogoGenerator.exe created successfully!"
+          $size = (Get-Item "dist/CatalogoGenerator.exe").Length / 1MB
+          Write-Host "Size: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Host "❌ CatalogoGenerator.exe not found!"
+          exit 1
+        }
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/CatalogoGenerator.exe
+        tag_name: ${{ github.ref_name }}
+        name: "Catálogo Generator v${{ github.ref_name }} - GUI (PyQt6)"
+        body: |
+          # Catálogo Generator v${{ github.ref_name }} - Desktop GUI Application
+
+          **Changes:** PyQt6-based desktop application with multi-threaded scraping
+          
+          ## What's Included
+          - ✅ Professional PyQt6 desktop interface
+          - ✅ Nike tab with orange theme
+          - ✅ Sephora tab with black theme
+          - ✅ Real-time logging and progress
+          - ✅ Results table display
+          - ✅ Excel export functionality
+          - ✅ All dependencies bundled (Selenium, Pandas, webdriver-manager)
+          
+          ## Installation
+          1. Download `CatalogoGenerator.exe`
+          2. Run it - no installation needed!
+          
+          ## Usage
+          1. Enter product URLs in the text area
+          2. Click "Scrape Nike" or "Scrape Sephora"
+          3. View results in the table
+          4. Download results to Excel
+          
+          Built with PyQt6, Selenium, Pandas
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
