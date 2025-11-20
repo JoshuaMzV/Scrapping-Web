@@ -1,3 +1,15 @@
+// Cargar versión al iniciar
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/version');
+        const data = await response.json();
+        document.getElementById('versionDisplay').textContent = data.version;
+    } catch (error) {
+        console.error('Error cargando versión:', error);
+        document.getElementById('versionDisplay').textContent = 'Error al cargar';
+    }
+});
+
 // Navigation
 document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {

@@ -133,6 +133,11 @@ def health():
     """Verifica que la aplicación esté funcionando"""
     return jsonify({'status': 'ok'}), 200
 
+@app.route('/version', methods=['GET'])
+def get_version():
+    """Devuelve la versión actual de la aplicación"""
+    return jsonify({'version': VERSION, 'message': f'Catálogo Generator v{VERSION}'}), 200
+
 @app.route('/scrape', methods=['POST'])
 def scrape():
     """Endpoint para scraping"""
