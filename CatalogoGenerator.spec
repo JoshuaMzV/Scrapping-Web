@@ -5,62 +5,84 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules, collect_dat
 
 block_cipher = None
 
-# Recopilar TODAS las dependencias de forma agresiva
+# Directorio base
+basedir = os.path.abspath('.')
+
+# Inicializar listas
 datas = []
 binaries = []
 hiddenimports = []
 
-# Módulos principales que DEBEN incluirse
-packages = [
-    'flask',
-    'werkzeug',
-    'jinja2',
-    'click',
-    'itsdangerous',
-    'markupsafe',
-    'selenium',
-    'pandas',
-    'numpy',
-    'openpyxl',
-    'requests',
-    'urllib3',
-    'certifi',
-    'charset_normalizer',
-    'idna',
-]
-
-# Agregar templates y static manualmente
-# Usar el directorio actual de trabajo que será la raíz del proyecto
-import os
-basedir = os.path.abspath('.')
+# Agregar templates y static PRIMERO
 datas.append((os.path.join(basedir, 'templates'), 'templates'))
 datas.append((os.path.join(basedir, 'static'), 'static'))
 
-# Recopilar TODO de cada paquete (datos, binarios, submódulos)
-for pkg in packages:
-    try:
-        pkg_datas, pkg_binaries, pkg_hiddenimports = collect_all(pkg)
-        datas += pkg_datas
-        binaries += pkg_binaries
-        hiddenimports += pkg_hiddenimports
-        print(f"[OK] Recopilado: {pkg}")
-    except Exception as e:
-        print(f"[WARNING] No se pudo recopilar {pkg}: {e}")
+# IMPORTS OCULTOS CRÍTICOS - Agregar TODOS los submódulos explícitamente
+print("[INFO] Recopilando submódulos de Flask...")
+hiddenimports += collect_submodules('flask')
+hiddenimports += collect_submodules('werkzeug')
+hiddenimports += collect_submodules('jinja2')
+hiddenimports += collect_submodules('click')
+hiddenimports += collect_submodules('itsdangerous')
+hiddenimports += collect_submodules('markupsafe')
 
-# Agregar submódulos explícitamente
+print("[INFO] Recopilando submódulos de Selenium...")
+hiddenimports += collect_submodules('selenium')
+
+print("[INFO] Recopilando submódulos de Pandas...")
+hiddenimports += collect_submodules('pandas')
+hiddenimports += collect_submodules('numpy')
+
+print("[INFO] Recopilando submódulos de OpenPyXL...")
+hiddenimports += collect_submodules('openpyxl')
+
+print("[INFO] Recopilando submódulos de Requests...")
+hiddenimports += collect_submodules('requests')
+hiddenimports += collect_submodules('urllib3')
+hiddenimports += collect_submodules('certifi')
+hiddenimports += collect_submodules('charset_normalizer')
+hiddenimports += collect_submodules('idna')
+
+print("[INFO] Recopilando submódulos del proyecto...")
 hiddenimports += collect_submodules('scrapers')
 hiddenimports += collect_submodules('src')
-hiddenimports += collect_submodules('flask')
-hiddenimports += collect_submodules('selenium')
-hiddenimports += collect_submodules('pandas')
 
-# Imports ocultos críticos adicionales
+# Ahora recopilar datos y binarios de los paquetes principales
+packages_for_data = ['werkzeug', 'jinja2', 'selenium', 'pandas', 'numpy', 'openpyxl']
+
+for pkg in packages_for_data:
+    try:
+        pkg_datas, pkg_binaries, _ = collect_all(pkg)
+        datas += pkg_datas
+        binaries += pkg_binaries
+        print(f"[OK] Datos/binarios recopilados: {pkg}")
+    except Exception as e:
+        print(f"[WARNING] Error recopilando {pkg}: {e}")
+
+# Imports adicionales específicos
 hiddenimports += [
+    'flask',
+    'flask.app',
+    'flask.blueprints',
+    'flask.cli',
+    'flask.config',
+    'flask.ctx',
+    'flask.globals',
+    'flask.helpers',
     'flask.json',
     'flask.json.tag',
+    'flask.logging',
+    'flask.sessions',
+    'flask.signals',
+    'flask.templating',
+    'flask.testing',
+    'flask.views',
+    'flask.wrappers',
     'werkzeug.routing',
     'werkzeug.security',
     'werkzeug.serving',
+    'werkzeug.middleware.dispatcher',
+    'werkzeug.middleware.shared_data',
     'selenium.webdriver.chrome.service',
     'selenium.webdriver.common.by',
     'pandas._libs',
