@@ -43,9 +43,9 @@ for pkg in packages:
         datas += pkg_datas
         binaries += pkg_binaries
         hiddenimports += pkg_hiddenimports
-        print(f"✅ Recopilado: {pkg}")
+        print(f"[OK] Recopilado: {pkg}")
     except Exception as e:
-        print(f"⚠️ No se pudo recopilar {pkg}: {e}")
+        print(f"[WARNING] No se pudo recopilar {pkg}: {e}")
 
 # Agregar submódulos explícitamente
 hiddenimports += collect_submodules('scrapers')
