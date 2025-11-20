@@ -10,6 +10,7 @@ on:
       - 'templates/**'
       - 'static/**'
       - 'build_exe.py'
+      - 'CatalogoGenerator.spec'
       - 'requirements.txt'
       - '.github/workflows/build-exe.yml'
 
