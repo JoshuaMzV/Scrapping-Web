@@ -8,6 +8,17 @@ from datetime import datetime
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# CARPETA DE DATOS EXTERNA (para .exe compilados)
+# Si se ejecuta desde PyInstaller, usa carpeta en AppData
+if hasattr(os.sys, 'frozen') and hasattr(os.sys, '_MEIPASS'):
+    # En .exe compilado
+    DATA_DIR = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'CatalogoGenerator', 'data')
+else:
+    # En desarrollo
+    DATA_DIR = BASE_DIR
+
+os.makedirs(DATA_DIR, exist_ok=True)
+
 # CONFIGURACIÓN DE FLASK
 FLASK_HOST = '127.0.0.1'
 FLASK_PORT = 5000
@@ -31,7 +42,7 @@ FACTOR_DESCUENTO_VENTA = 0.90
 GITHUB_REPO_URL = 'https://github.com/JoshuaMzV/Scrapping-Web'
 GITHUB_REPO_OWNER = 'JoshuaMzV'
 GITHUB_REPO_NAME = 'Scrapping-Web'
-VERSION = '1.0.0'
+VERSION = '1.0.2'
 LAST_UPDATE = datetime.now().strftime('%d/%m/%Y')
 
 # MARCAS SOPORTADAS

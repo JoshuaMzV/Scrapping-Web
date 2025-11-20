@@ -25,9 +25,25 @@ from scrapers.nike import scrape_nike, calcular_precios as nike_calcular, limpia
 from scrapers.sephora import scrape_sephora, calcular_precios as sephora_calcular, limpiar_precio as sephora_limpiar
 
 # Importar configuración
-from src.config.settings import GITHUB_REPO_URL, GITHUB_REPO_OWNER, GITHUB_REPO_NAME, VERSION
+from src.config.settings import GITHUB_REPO_URL, GITHUB_REPO_OWNER, GITHUB_REPO_NAME, VERSION, DATA_DIR
 
-app = Flask(__name__)
+# Configurar rutas de templates y static según si hay actualizaciones
+template_folder = 'templates'
+static_folder = 'static'
+static_url_path = '/static'
+
+# Si hay archivos actualizados en DATA_DIR, usarlos
+if DATA_DIR != os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))):
+    external_templates = os.path.join(DATA_DIR, 'templates')
+    external_static = os.path.join(DATA_DIR, 'static')
+    
+    if os.path.exists(external_templates):
+        template_folder = external_templates
+    if os.path.exists(external_static):
+        static_folder = external_static
+        static_url_path = os.path.join(DATA_DIR, 'static')
+
+app = Flask(__name__, template_folder=template_folder, static_folder=static_folder, static_url_path=static_url_path)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.expanduser('~'), 'Downloads')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
 
@@ -248,34 +264,24 @@ def scrape():
 
 @app.route('/update', methods=['POST'])
 def update():
-    """Actualiza desde GitHub - URL hardcodeada"""
+    """Actualiza desde GitHub a carpeta externa"""
     try:
+        from src.config.settings import DATA_DIR
+        
         print(f"\n🔄 Descargando actualización desde: {GITHUB_REPO_URL}")
+        print(f"📍 Datos se guardarán en: {DATA_DIR}")
 
-        # Usar URL hardcodeada
         usuario = GITHUB_REPO_OWNER
         repo = GITHUB_REPO_NAME
-        project_root = os.path.dirname(__file__)
         
-        # Crear carpeta temporal con timestamp
+        # Crear carpeta temporal
         from datetime import datetime as dt_now
         temp_timestamp = dt_now.now().strftime('%Y%m%d_%H%M%S')
-        temp_dir = os.path.join(project_root, f'temp_update_{temp_timestamp}')
-        
-        # Limpiar directorio temporal si existe (con reintentos)
-        if os.path.exists(temp_dir):
-            for attempt in range(3):
-                try:
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                    time.sleep(0.5)
-                    if not os.path.exists(temp_dir):
-                        break
-                except:
-                    pass
+        temp_dir = os.path.join(DATA_DIR, f'temp_update_{temp_timestamp}')
         
         os.makedirs(temp_dir, exist_ok=True)
 
-        # Clonar repositorio - usar shallow clone para más velocidad
+        # Clonar repositorio
         clone_url = f"https://github.com/{usuario}/{repo}.git"
         resultado = subprocess.run(['git', 'clone', '--depth', '1', clone_url, temp_dir], 
                                  capture_output=True, text=True, timeout=60)
@@ -284,36 +290,33 @@ def update():
             print(f"❌ Error clonando: {resultado.stderr}")
             return jsonify({'success': False, 'message': 'Error clonando repositorio'}), 400
 
-        # Copiar archivos importantes
+        # Archivos a actualizar en carpeta de datos
         archivos_copiar = [
             'scrapers/',
             'src/',
-            'templates/index.html',
-            'static/css/style.css',
-            'static/js/script.js',
-            'requirements.txt',
-            'docs/'
+            'templates/',
+            'static/',
         ]
         
         for archivo in archivos_copiar:
             src = os.path.join(temp_dir, archivo)
-            dst = os.path.join(project_root, archivo)
+            dst = os.path.join(DATA_DIR, archivo)
             
             if os.path.exists(src):
                 try:
                     if os.path.isdir(src):
-                        print(f"  📁 Actualizando carpeta: {archivo}")
+                        print(f"  📁 Actualizando: {archivo}")
                         if os.path.exists(dst):
                             shutil.rmtree(dst, ignore_errors=True)
                         shutil.copytree(src, dst, ignore=shutil.ignore_patterns('.git*'))
                     else:
-                        print(f"  📄 Actualizando archivo: {archivo}")
+                        print(f"  📄 Actualizando: {archivo}")
                         os.makedirs(os.path.dirname(dst), exist_ok=True)
                         shutil.copy2(src, dst)
                 except Exception as e:
-                    print(f"  ⚠️  Error copiando {archivo}: {e}")
+                    print(f"  ⚠️  Error: {e}")
 
-        # Limpiar temp_dir más agresivamente
+        # Limpiar temporal
         import gc
         gc.collect()
         time.sleep(1)
@@ -323,53 +326,45 @@ def update():
         except:
             pass
 
-        print(f"\n✅ Actualización completada desde: {GITHUB_REPO_URL}")
+        print(f"\n✅ Actualización completada")
+        print(f"📍 Archivos nuevos están en: {DATA_DIR}")
         
-        # NO cerrar el proceso - solo recargar módulos
-        def recargar_modulos():
+        # Recargar config para obtener versión nueva
+        def recargar_config():
             import time
-            time.sleep(1)  # Dar tiempo a que se envíe la respuesta
-            print("\n🔄 Recargando módulos actualizados...")
-            
+            time.sleep(1)
             try:
-                # Recargar módulos Python
                 import importlib
                 import sys
                 
-                # Recargar scrapers
-                if 'scrapers.nike' in sys.modules:
-                    importlib.reload(sys.modules['scrapers.nike'])
-                if 'scrapers.sephora' in sys.modules:
-                    importlib.reload(sys.modules['scrapers.sephora'])
-                
-                # Recargar config
                 if 'src.config.settings' in sys.modules:
                     importlib.reload(sys.modules['src.config.settings'])
                 
-                print("✅ Módulos recargados correctamente")
-                print("✅ Los cambios estarán disponibles en la próxima solicitud")
+                print("✅ Configuración recargada")
                 
             except Exception as e:
-                print(f"⚠️ Error recargando módulos: {e}")
+                print(f"⚠️ Error recargando: {e}")
         
         from threading import Thread
-        thread = Thread(target=recargar_modulos, daemon=True)
+        thread = Thread(target=recargar_config, daemon=True)
         thread.start()
         
         return jsonify({
             'success': True, 
-            'message': 'Actualización completada. Los cambios están listos. Recarga la página para verlos.',
-            'version': VERSION
+            'message': '✅ Actualización completada. Recargando página...',
+            'version': VERSION,
+            'data_dir': DATA_DIR
         }), 200
 
     except subprocess.TimeoutExpired:
-        print("❌ Timeout en descarga de GitHub")
-        return jsonify({'success': False, 'message': 'Timeout en descarga (conexión lenta)'}), 400
+        print("❌ Timeout")
+        return jsonify({'success': False, 'message': 'Timeout en descarga'}), 400
     except Exception as e:
-        print(f"❌ Error en actualización: {str(e)}")
+        print(f"❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
