@@ -16,6 +16,9 @@ import shutil
 import json
 from io import BytesIO
 import base64
+from threading import Timer
+import webbrowser
+import os as os_module
 
 # Importar scrapers
 from scrapers.nike import scrape_nike, calcular_precios as nike_calcular, limpiar_precio as nike_limpiar
@@ -31,6 +34,18 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
 # Configuración global
 DRIVER = None
 WAIT = None
+
+def abrir_navegador():
+    """Abre el navegador en la URL local después de que Flask inicie"""
+    import time
+    time.sleep(2)  # Esperar a que Flask esté completamente listo
+    url = 'http://127.0.0.1:5000'
+    print(f"\n🌐 Abriendo navegador en {url}...")
+    try:
+        webbrowser.open(url)
+        print("✅ Navegador abierto correctamente")
+    except Exception as e:
+        print(f"⚠️  No se pudo abrir el navegador: {e}")
 
 def inicializar_driver():
     """Inicializa el driver de Selenium"""
@@ -319,6 +334,28 @@ def health():
     """Health check"""
     return jsonify({'status': 'ok'}), 200
 
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    """Cierra la aplicación"""
+    print("\n🛑 Solicitud de cierre recibida desde la interfaz...")
+    
+    # Crear respuesta
+    response = jsonify({'success': True, 'message': 'Aplicación cerrada correctamente'})
+    
+    # Cerrar después de enviar la respuesta
+    def cerrar_en_background():
+        import time
+        time.sleep(1)  # Dar tiempo a que se envíe la respuesta
+        cerrar_driver()
+        print("✅ Aplicación cerrada correctamente")
+        os_module._exit(0)
+    
+    from threading import Thread
+    thread = Thread(target=cerrar_en_background, daemon=True)
+    thread.start()
+    
+    return response, 200
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Ruta no encontrada'}), 404
@@ -329,6 +366,15 @@ def server_error(error):
 
 if __name__ == '__main__':
     try:
+        print("=" * 60)
+        print("🚀 Iniciando Catálogo Generator")
+        print("=" * 60)
+        
+        # Abrir navegador en un thread separado
+        from threading import Thread
+        navegador_thread = Thread(target=abrir_navegador, daemon=True)
+        navegador_thread.start()
+        
         # Configuración para .exe
         app.run(
             host='127.0.0.1',

@@ -2,6 +2,7 @@
 document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
+        enviarPingActividad();
         const target = link.getAttribute('href');
         
         // Remove active class from all sections and links
@@ -14,10 +15,16 @@ document.querySelectorAll('.nav-link').forEach(link => {
     });
 });
 
+// Enviar actividad al servidor para reiniciar timer
+function enviarPingActividad() {
+    fetch('/health', { method: 'GET' }).catch(() => {});
+}
+
 // Button Actions
-document.getElementById('btnGenerar').addEventListener('click', generarCatalogo);
-document.getElementById('btnLimpiar').addEventListener('click', limpiarFormulario);
-document.getElementById('btnActualizar').addEventListener('click', actualizarDesdeGitHub);
+document.getElementById('btnGenerar').addEventListener('click', () => { enviarPingActividad(); generarCatalogo(); });
+document.getElementById('btnLimpiar').addEventListener('click', () => { enviarPingActividad(); limpiarFormulario(); });
+document.getElementById('btnActualizar').addEventListener('click', () => { enviarPingActividad(); actualizarDesdeGitHub(); });
+document.getElementById('btnCerrar').addEventListener('click', cerrarAplicacion);
 
 // Generar Catálogo
 async function generarCatalogo() {
@@ -168,6 +175,18 @@ function mostrarExitoActualizacion(mensaje) {
     document.getElementById('updateContainer').style.display = 'block';
     document.getElementById('updateError').style.display = 'none';
     document.getElementById('updateSuccess').style.display = 'block';
+}
+
+// Cerrar aplicación
+function cerrarAplicacion() {
+    if (confirm('¿Estás seguro de que quieres cerrar la aplicación?')) {
+        fetch('/shutdown', { method: 'POST' }).then(() => {
+            alert('Aplicación cerrada correctamente.');
+            window.close();
+        }).catch(() => {
+            alert('Error al cerrar la aplicación.');
+        });
+    }
 }
 
 // WebSocket para progreso en tiempo real (opcional)

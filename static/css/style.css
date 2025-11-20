@@ -57,6 +57,28 @@ body {
     color: #667eea;
 }
 
+/* Botón de cierre */
+.btn-cerrar {
+    background: #ff4757;
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+}
+
+.btn-cerrar:hover {
+    background: #ff3838;
+    transform: scale(1.1);
+}
+
 .hamburger {
     display: none;
     flex-direction: column;
