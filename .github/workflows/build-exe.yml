@@ -55,59 +55,32 @@ jobs:
         Write-Host "Version: $version"
     
     - name: Create Release
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        REPO_OWNER: ${{ github.repository_owner }}
-        REPO_NAME: Scrapping-Web
-      run: |
-        $version = "${{ steps.version.outputs.VERSION }}"
-        $tag = "v$version"
-        
-        # Create release via GitHub API
-        $releaseData = @{
-          tag_name = $tag
-          name = "Catálogo Generator $version"
-          draft = $false
-          prerelease = $false
-          body = @"
-        ## Catálogo Generator v$version
-        
-        ### Características
-        - Scraping Nike y Sephora
-        - Excel generado automáticamente
-        - Interfaz web integrada
-        - Actualizaciones desde GitHub
-        
-        ### Descargar
-        - CatalogoGenerator.exe (43.9 MB)
-        
-        ### Instalación
-        1. Descarga CatalogoGenerator.exe
-        2. Ejecuta el archivo
-        3. Se abrirá en http://127.0.0.1:5000
-        
-        Compilado automáticamente por GitHub Actions
-        "@
-        }
-        
-        $releaseResponse = Invoke-RestMethod `
-          -Uri "https://api.github.com/repos/${{ github.repository }}/releases" `
-          -Method POST `
-          -Headers @{"Authorization"="token $env:GITHUB_TOKEN"} `
-          -ContentType "application/json" `
-          -Body ($releaseData | ConvertTo-Json)
-        
-        Write-Host "Release created: $tag"
-        
-        # Upload asset
-        $uploadUrl = $releaseResponse.upload_url -replace '\{.*\}',''
-        $asset = Get-Item "dist/CatalogoGenerator.exe"
-        
-        Invoke-RestMethod `
-          -Uri "$uploadUrl/?name=CatalogoGenerator-v$version.exe" `
-          -Method POST `
-          -Headers @{"Authorization"="token $env:GITHUB_TOKEN"} `
-          -ContentType "application/octet-stream" `
-          -InFile $asset.FullName
-        
-        Write-Host "Asset uploaded successfully"
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+        name: Catálogo Generator v${{ steps.version.outputs.VERSION }}
+        files: dist/CatalogoGenerator.exe
+        draft: false
+        prerelease: false
+        body: |
+          ## Catálogo Generator v${{ steps.version.outputs.VERSION }}
+          
+          ### Características
+          - Scraping automático de Nike y Sephora
+          - Generación de Excel con precios
+          - Interfaz web integrada
+          - Actualizaciones automáticas desde GitHub
+          
+          ### Descargar
+          - CatalogoGenerator.exe (43.9 MB)
+          
+          ### Instalación
+          1. Descarga CatalogoGenerator.exe
+          2. Ejecuta el archivo
+          3. Se abrirá automáticamente en http://127.0.0.1:5000
+          
+          ### Notas
+          - Los datos se guardan en: C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\
+          - Las actualizaciones se descargan automáticamente
+          
+          Compilado automáticamente por GitHub Actions
