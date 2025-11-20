@@ -56,40 +56,33 @@ jobs:
         Write-Host "✅ Version detected: $version"
     
     - name: Create GitHub Release
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        $version = "${{ steps.version.outputs.VERSION }}"
-        $tag = "v$version"
-        $exe = "dist/CatalogoGenerator.exe"
-        
-        # Create release
-        Write-Host "Creating release $tag..."
-        gh release create "$tag" "$exe" `
-          --title "Catálogo Generator $version" `
-          --notes @"
-        ## Catálogo Generator v$version
+      uses: ncipollo/release-action@v1
+      with:
+        tag: v${{ steps.version.outputs.VERSION }}
+        name: Catálogo Generator v${{ steps.version.outputs.VERSION }}
+        artifacts: dist/CatalogoGenerator.exe
+        draft: false
+        prerelease: false
+        body: |
+          ## Catálogo Generator v${{ steps.version.outputs.VERSION }}
 
-        ### Descargar
-        - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
+          ### Descargar
+          - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
 
-        ### Características
-        - Scraping automático de Nike y Sephora
-        - Generación de Excel con precios
-        - Interfaz web integrada
-        - Actualizaciones automáticas desde GitHub
+          ### Características
+          - Scraping automático de Nike y Sephora
+          - Generación de Excel con precios
+          - Interfaz web integrada
+          - Actualizaciones automáticas desde GitHub
 
-        ### Instalación
-        1. Descarga CatalogoGenerator.exe
-        2. Ejecuta el archivo
-        3. Se abrirá automáticamente en http://127.0.0.1:5000
+          ### Instalación
+          1. Descarga CatalogoGenerator.exe
+          2. Ejecuta el archivo
+          3. Se abrirá automáticamente en http://127.0.0.1:5000
 
-        ### Notas
-        - Los datos se guardan en: C:\Users\\{usuario}\AppData\Local\CatalogoGenerator\data\
-        - Las actualizaciones se descargan automáticamente
-        - Requiere conexión a internet para el scraping
+          ### Notas
+          - Los datos se guardan en: C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\
+          - Las actualizaciones se descargan automáticamente
+          - Requiere conexión a internet para el scraping
 
-        Compilado automáticamente por GitHub Actions en $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')
-        "@
-        
-        Write-Host "✅ Release $tag created successfully!"
+          Compilado automáticamente por GitHub Actions
