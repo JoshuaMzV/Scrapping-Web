@@ -19,7 +19,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -53,37 +53,43 @@ jobs:
         $content = Get-Content "src/config/settings.py"
         $version = $content | Select-String "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value }
         "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-        Write-Host "Version detected: $version"
+        Write-Host "✅ Version detected: $version"
     
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v${{ steps.version.outputs.VERSION }}
-        name: "Catálogo Generator v${{ steps.version.outputs.VERSION }}"
-        draft: false
-        prerelease: false
-        files: dist/CatalogoGenerator.exe
-        body: |
-          ## Catálogo Generator v${{ steps.version.outputs.VERSION }}
-          
-          ### Descargar
-          - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
-          
-          ### Características
-          - Scraping automático de Nike y Sephora
-          - Generación de Excel con precios
-          - Interfaz web integrada
-          - Actualizaciones automáticas
-          
-          ### Instalación
-          1. Descarga CatalogoGenerator.exe
-          2. Ejecuta el archivo
-          3. Se abrirá automáticamente en http://127.0.0.1:5000
-          
-          ### Notas
-          - Los archivos se guardan en: C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\
-          - Las actualizaciones se descargan automáticamente
-          
-          Compilado por GitHub Actions
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $tag = "v$version"
+        $exe = "dist/CatalogoGenerator.exe"
+        
+        # Create release
+        Write-Host "Creating release $tag..."
+        gh release create "$tag" "$exe" `
+          --title "Catálogo Generator $version" `
+          --notes @"
+        ## Catálogo Generator v$version
+
+        ### Descargar
+        - **CatalogoGenerator.exe** - Aplicación completa (43.9 MB)
+
+        ### Características
+        - Scraping automático de Nike y Sephora
+        - Generación de Excel con precios
+        - Interfaz web integrada
+        - Actualizaciones automáticas desde GitHub
+
+        ### Instalación
+        1. Descarga CatalogoGenerator.exe
+        2. Ejecuta el archivo
+        3. Se abrirá automáticamente en http://127.0.0.1:5000
+
+        ### Notas
+        - Los datos se guardan en: C:\Users\\{usuario}\AppData\Local\CatalogoGenerator\data\
+        - Las actualizaciones se descargan automáticamente
+        - Requiere conexión a internet para el scraping
+
+        Compilado automáticamente por GitHub Actions en $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss')
+        "@
+        
+        Write-Host "✅ Release $tag created successfully!"
