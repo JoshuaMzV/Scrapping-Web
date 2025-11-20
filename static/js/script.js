@@ -151,7 +151,37 @@ async function actualizarDesdeGitHub() {
         const data = await response.json();
 
         if (data.success) {
-            mostrarExitoActualizacion(data.message + ' (v' + data.version + ')');
+            mostrarExitoActualizacion('✅ Actualización descargada. La aplicación se está reiniciando...');
+            
+            // Esperar a que la app se reinicie (5 segundos)
+            console.log('⏳ Esperando reinicio de la aplicación...');
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
+            // Intentar reconectar (máximo 10 intentos, cada 1 segundo)
+            let intentos = 0;
+            const reconectar = setInterval(() => {
+                intentos++;
+                fetch('/health')
+                    .then(response => {
+                        if (response.ok) {
+                            clearInterval(reconectar);
+                            console.log('✅ Aplicación reiniciada correctamente');
+                            mostrarExitoActualizacion('✅ ¡Actualización completada! La aplicación se ha reiniciado.\n\nPor favor recarga la página para ver los cambios.');
+                            
+                            // Recargar página después de 2 segundos
+                            setTimeout(() => {
+                                location.reload();
+                            }, 2000);
+                        }
+                    })
+                    .catch(() => {
+                        if (intentos >= 10) {
+                            clearInterval(reconectar);
+                            console.log('⚠️ No se pudo reconectar. Por favor recarga manualmente.');
+                            mostrarExitoActualizacion('✅ Actualización completada.\n\nPor favor recarga la página manualmente (F5 o Ctrl+R).');
+                        }
+                    });
+            }, 1000);
         } else {
             mostrarErrorActualizacion(data.message || 'Error al actualizar');
         }

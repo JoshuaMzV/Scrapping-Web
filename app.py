@@ -128,6 +128,11 @@ def index():
     """Página principal"""
     return render_template('index.html')
 
+@app.route('/health', methods=['GET'])
+def health():
+    """Verifica que la aplicación esté funcionando"""
+    return jsonify({'status': 'ok'}), 200
+
 @app.route('/scrape', methods=['POST'])
 def scrape():
     """Endpoint para scraping"""
@@ -314,9 +319,22 @@ def update():
             pass
 
         print(f"\n✅ Actualización completada desde: {GITHUB_REPO_URL}")
+        
+        # Reiniciar la aplicación en background después de enviar respuesta
+        def reiniciar_app():
+            import time
+            time.sleep(2)  # Dar tiempo a que se envíe la respuesta
+            print("\n🔄 Reiniciando aplicación con cambios actualizados...")
+            cerrar_driver()
+            os_module._exit(0)  # Cerrar el proceso para que se reinicie
+        
+        from threading import Thread
+        thread = Thread(target=reiniciar_app, daemon=True)
+        thread.start()
+        
         return jsonify({
             'success': True, 
-            'message': 'Actualización completada. Por favor reinicia la aplicación.',
+            'message': 'Actualización completada. La aplicación se reiniciará automáticamente.',
             'version': VERSION
         }), 200
 
@@ -328,11 +346,6 @@ def update():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
-
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check"""
-    return jsonify({'status': 'ok'}), 200
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown():
