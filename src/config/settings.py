@@ -42,7 +42,7 @@ FACTOR_DESCUENTO_VENTA = 0.90
 GITHUB_REPO_URL = 'https://github.com/JoshuaMzV/Scrapping-Web'
 GITHUB_REPO_OWNER = 'JoshuaMzV'
 GITHUB_REPO_NAME = 'Scrapping-Web'
-VERSION = '1.0.9'
+VERSION = '2.0.0'
 LAST_UPDATE = datetime.now().strftime('%d/%m/%Y')
 
 # MARCAS SOPORTADAS

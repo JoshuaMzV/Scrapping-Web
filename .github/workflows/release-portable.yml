@@ -1,0 +1,126 @@
+name: Create Portable Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app.py'
+      - 'src/**'
+      - 'scrapers/**'
+      - 'requirements.txt'
+      - '.github/workflows/release-portable.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Download Python Embeddable
+      run: |
+        $url = "https://www.python.org/ftp/python/3.11.9/python-3.11.9-embed-amd64.zip"
+        Invoke-WebRequest -Uri $url -OutFile "python-embed.zip"
+        Expand-Archive -Path "python-embed.zip" -DestinationPath "portable-python"
+    
+    - name: Install pip in embedded Python
+      run: |
+        # Descargar get-pip.py
+        Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "get-pip.py"
+        
+        # Modificar python311._pth para permitir site-packages
+        $pthFile = "portable-python\python311._pth"
+        $content = Get-Content $pthFile
+        $content = $content -replace "#import site", "import site"
+        $content | Set-Content $pthFile
+        
+        # Instalar pip
+        .\portable-python\python.exe get-pip.py
+    
+    - name: Install dependencies
+      run: |
+        .\portable-python\Scripts\pip.exe install -r requirements.txt
+    
+    - name: Create portable structure
+      run: |
+        # Crear estructura
+        New-Item -ItemType Directory -Force -Path "CatalogoGenerator"
+        
+        # Copiar Python portable
+        Copy-Item -Recurse -Force "portable-python\*" "CatalogoGenerator\"
+        
+        # Copiar proyecto
+        Copy-Item -Recurse -Force "src" "CatalogoGenerator\"
+        Copy-Item -Recurse -Force "scrapers" "CatalogoGenerator\"
+        Copy-Item -Recurse -Force "templates" "CatalogoGenerator\"
+        Copy-Item -Recurse -Force "static" "CatalogoGenerator\"
+        Copy-Item -Force "app.py" "CatalogoGenerator\"
+        Copy-Item -Force "requirements.txt" "CatalogoGenerator\"
+        
+        # Crear launcher.bat
+        @"
+        @echo off
+        title Catalogo Generator
+        echo Iniciando Catalogo Generator...
+        start http://127.0.0.1:5000
+        python.exe app.py
+        pause
+        "@ | Out-File -FilePath "CatalogoGenerator\CatalogoGenerator.bat" -Encoding ASCII
+        
+        # Comprimir
+        Compress-Archive -Path "CatalogoGenerator" -DestinationPath "CatalogoGenerator-Portable.zip"
+    
+    - name: Extract version
+      id: version
+      run: |
+        $content = Get-Content "src/config/settings.py"
+        $version = $content | Select-String "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value }
+        "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+        Write-Host "Version: $version"
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+        name: Catálogo Generator v${{ steps.version.outputs.VERSION }} - Portable
+        files: CatalogoGenerator-Portable.zip
+        draft: false
+        prerelease: false
+        body: |
+          ## Catálogo Generator v${{ steps.version.outputs.VERSION }} - Versión Portable
+          
+          ### ✅ Nueva versión PORTABLE - Sin instalación requerida
+          
+          **NO REQUIERE instalar Python** - Todo incluido en un solo archivo ZIP
+          
+          ### 📥 Instalación
+          1. Descarga `CatalogoGenerator-Portable.zip`
+          2. Descomprime en cualquier carpeta
+          3. Ejecuta `CatalogoGenerator.bat`
+          4. Se abrirá automáticamente en tu navegador
+          
+          ### 🚀 Características
+          - ✅ Python 3.11 embebido (no afecta tu instalación de Python)
+          - ✅ Todas las dependencias incluidas (Flask, Selenium, Pandas)
+          - ✅ Scraping de Nike y Sephora
+          - ✅ Generación automática de Excel
+          - ✅ Interfaz web moderna
+          
+          ### 📊 Tamaño
+          - ~50-70 MB comprimido
+          - ~150-200 MB descomprimido
+          
+          ### ⚙️ Requisitos
+          - Windows 10/11 (64-bit)
+          - Conexión a Internet para scraping
+          
+          ---
+          Compilado automáticamente con GitHub Actions
