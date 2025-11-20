@@ -1,0 +1,106 @@
+name: Build and Release Executable
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app.py'
+      - 'src/**'
+      - 'scrapers/**'
+      - 'templates/**'
+      - 'static/**'
+      - 'build_exe.py'
+      - 'requirements.txt'
+      - '.github/workflows/build-exe.yml'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.14'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build executable with PyInstaller
+      run: |
+        python build_exe.py
+    
+    - name: Check if exe was built
+      run: |
+        if (!(Test-Path "dist/CatalogoGenerator.exe")) {
+          Write-Host "ERROR: CatalogoGenerator.exe not found!"
+          exit 1
+        }
+        Write-Host "✅ CatalogoGenerator.exe built successfully"
+        $size = (Get-Item "dist/CatalogoGenerator.exe").Length / 1MB
+        Write-Host "📊 File size: $($size.ToString('F1')) MB"
+    
+    - name: Extract version from settings
+      id: version
+      run: |
+        $version = (Select-String -Path "src/config/settings.py" -Pattern "VERSION = '([^']+)'" | ForEach-Object { $_.Matches[0].Groups[1].Value })
+        Write-Host "VERSION=$version" >> $env:GITHUB_OUTPUT
+        Write-Host "📌 Version detected: $version"
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.version.outputs.VERSION }}
+        release_name: Catálogo Generator v${{ steps.version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          ## 🚀 Catálogo Generator v${{ steps.version.outputs.VERSION }}
+          
+          ### 📥 Descargar
+          - **CatalogoGenerator.exe** - Aplicación completa con interfaz gráfica
+          
+          ### ✨ Características
+          - ✅ Scraping automático (Nike, Sephora)
+          - ✅ Generación de Excel con precios calculados
+          - ✅ Interfaz web integrada
+          - ✅ Actualización automática desde GitHub
+          
+          ### 🔧 Instalación
+          1. Descarga `CatalogoGenerator.exe`
+          2. Ejecuta el archivo
+          3. El navegador se abrirá automáticamente en http://127.0.0.1:5000
+          
+          ### 📝 Notas
+          - Requiere conexión a internet para scraping
+          - Los datos se guardan en: `C:\Users\{usuario}\AppData\Local\CatalogoGenerator\data\`
+          - Las actualizaciones se descarga automáticamente
+          
+          ---
+          Compilado automáticamente por GitHub Actions
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/CatalogoGenerator.exe
+        asset_name: CatalogoGenerator-v${{ steps.version.outputs.VERSION }}.exe
+        asset_content_type: application/vnd.microsoft.portable-executable
+    
+    - name: Upload Release Success
+      run: |
+        Write-Host "✅ Release created successfully!"
+        Write-Host "📦 Asset: CatalogoGenerator-v${{ steps.version.outputs.VERSION }}.exe"
+        Write-Host "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.VERSION }}"
