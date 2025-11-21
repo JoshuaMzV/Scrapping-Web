@@ -10,9 +10,24 @@ import os
 import threading
 import json
 import base64
+import logging
+import re
+import subprocess
+import time
+import requests
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+
+# Configurar logging
+log_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'CatalogoGenerator')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, 'error.log')
+logging.basicConfig(
+    filename=log_file,
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -22,20 +37,29 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, QUrl
 from PyQt6.QtGui import QFont, QColor, QIcon
-from PyQt6.QtWebEngineWidgets import QWebEngineView
 import pandas as pd
 
 # Importar funciones de scraping
-from scrapers.nike import scrape_nike, calcular_precios as nike_calcular, limpiar_precio as nike_limpiar
-from scrapers.sephora import scrape_sephora, calcular_precios as sephora_calcular, limpiar_precio as sephora_limpiar
-from src.config.settings import VERSION
+try:
+    from scrapers.nike import scrape_nike, calcular_precios as nike_calcular, limpiar_precio as nike_limpiar
+    from scrapers.sephora import scrape_sephora, calcular_precios as sephora_calcular, limpiar_precio as sephora_limpiar
+    from src.config.settings import VERSION
+    logging.info("✅ Scrapers importados correctamente")
+except ImportError as e:
+    logging.error(f"❌ Error al importar scrapers: {e}")
+    raise
 
 # Importar Selenium
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.support.ui import WebDriverWait
+try:
+    from selenium import webdriver
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+    from selenium.webdriver.support.ui import WebDriverWait
+    logging.info("✅ Selenium importado correctamente")
+except ImportError as e:
+    logging.error(f"❌ Error al importar Selenium: {e}")
+    raise
 
 
 class ScrapingThread(QThread):
@@ -54,13 +78,31 @@ class ScrapingThread(QThread):
     def run(self):
         try:
             self.progress.emit(f"🚀 Iniciando scraping de {self.marca}...")
+            logging.info(f"Iniciando scraping de {self.marca} con {len(self.urls)} URLs")
             
             # Inicializar driver
-            service = Service(ChromeDriverManager().install())
-            options = webdriver.ChromeOptions()
-            options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
-            self.driver = webdriver.Chrome(service=service, options=options)
-            self.wait = WebDriverWait(self.driver, 20)
+            try:
+                self.progress.emit("⚙️ Descargando ChromeDriver...")
+                logging.info("Descargando ChromeDriver")
+                service = Service(ChromeDriverManager().install())
+                logging.info(f"ChromeDriver instalado: {service.path}")
+            except Exception as e:
+                logging.error(f"Error instalando ChromeDriver: {e}")
+                self.error.emit(f"Error al descargar ChromeDriver: {str(e)}")
+                return
+            
+            try:
+                options = webdriver.ChromeOptions()
+                options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+                options.add_argument('--no-sandbox')
+                options.add_argument('--disable-dev-shm-usage')
+                self.driver = webdriver.Chrome(service=service, options=options)
+                self.wait = WebDriverWait(self.driver, 20)
+                logging.info("Chrome driver iniciado correctamente")
+            except Exception as e:
+                logging.error(f"Error iniciando Chrome driver: {e}")
+                self.error.emit(f"Error al iniciar Chrome: {str(e)}")
+                return
             
             datos_encontrados = []
             
@@ -68,41 +110,74 @@ class ScrapingThread(QThread):
             if 'nike' in self.marca.lower():
                 scraper_func = scrape_nike
                 calcular = nike_calcular
+                logging.info("Usando scraper de Nike")
             elif 'sephora' in self.marca.lower():
                 scraper_func = scrape_sephora
                 calcular = sephora_calcular
+                logging.info("Usando scraper de Sephora")
             else:
-                self.error.emit(f"Marca '{self.marca}' no soportada")
+                error_msg = f"Marca '{self.marca}' no soportada"
+                logging.error(error_msg)
+                self.error.emit(error_msg)
                 return
 
             for idx, url in enumerate(self.urls, 1):
                 self.progress.emit(f"[{idx}/{len(self.urls)}] Procesando: {url}")
+                logging.info(f"Procesando URL {idx}: {url}")
                 
                 try:
                     datos_extraidos = scraper_func(self.driver, self.wait, url)
+                    logging.info(f"Datos extraídos: {datos_extraidos}")
                     
                     if datos_extraidos and datos_extraidos.get('nombre') != 'Error':
-                        precio_usd = float(datos_extraidos['precio'].replace(',', '.').replace('$', '').replace(',', ''))
-                        precios = calcular(precio_usd)
-                        
-                        row = {
-                            'Nombre': datos_extraidos['nombre'],
-                            'Sitio': datos_extraidos.get('sitio', 'Desconocido'),
-                            'Precio USD': precio_usd,
-                            **precios
-                        }
-                        datos_encontrados.append(row)
-                        self.progress.emit(f"✅ {datos_extraidos['nombre']}")
+                        try:
+                            # Limpiar precio: extrae SOLO números y punto decimal
+                            precio_str = str(datos_extraidos['precio']).strip()
+                            # Eliminar símbolos de moneda y espacios
+                            precio_str = precio_str.replace('US$', '').replace('$', '').replace('€', '').replace(' ', '')
+                            # Mantener solo números y el primer punto
+                            numeros = re.findall(r'[\d.]+', precio_str)
+                            if numeros:
+                                precio_usd = float(numeros[0])
+                            else:
+                                self.progress.emit(f"⚠️ No se pudo extraer precio de: {precio_str}")
+                                continue
+                            
+                            precios = calcular(precio_usd)
+                            
+                            row = {
+                                'Nombre': datos_extraidos['nombre'],
+                                'Sitio': datos_extraidos.get('sitio', 'Desconocido'),
+                                'Precio USD': precio_usd,
+                                'Tallas': datos_extraidos.get('tallas', 'N/A'),
+                                **precios
+                            }
+                            datos_encontrados.append(row)
+                            self.progress.emit(f"✅ {datos_extraidos['nombre']} (${precio_usd})")
+                            logging.info(f"Producto agregado: {datos_extraidos['nombre']} - ${precio_usd}")
+                        except (ValueError, IndexError) as e:
+                            error_msg = f"Error al procesar precio de '{datos_extraidos.get('nombre', 'producto')}': {datos_extraidos['precio']}"
+                            logging.error(error_msg)
+                            self.progress.emit(f"⚠️ {error_msg}")
                     else:
                         self.progress.emit(f"❌ Error extrayendo datos de {url}")
+                        logging.warning(f"No se extrajeron datos de {url}")
                         
                 except Exception as e:
-                    self.progress.emit(f"❌ Error: {str(e)}")
+                    error_msg = f"❌ Error: {str(e)}"
+                    self.progress.emit(error_msg)
+                    logging.error(f"Error procesando URL {url}: {e}", exc_info=True)
                     continue
 
-            self.driver.quit()
+            try:
+                self.driver.quit()
+                logging.info("Chrome driver cerrado")
+            except:
+                pass
             
             if datos_encontrados:
+                self.progress.emit(f"✅ Extracción completada: {len(datos_encontrados)} productos")
+                logging.info(f"Extracción completada: {len(datos_encontrados)} productos")
                 self.finished.emit({
                     'success': True,
                     'data': datos_encontrados,
@@ -110,11 +185,17 @@ class ScrapingThread(QThread):
                 })
             else:
                 self.error.emit("No se extrajeron datos")
+                logging.warning("No se extrajeron datos")
                 
         except Exception as e:
+            error_msg = f"Error general: {str(e)}"
+            logging.error(error_msg, exc_info=True)
             if self.driver:
-                self.driver.quit()
-            self.error.emit(f"Error: {str(e)}")
+                try:
+                    self.driver.quit()
+                except:
+                    pass
+            self.error.emit(error_msg)
 
 
 class NikeTab(QWidget):
@@ -354,6 +435,106 @@ class SephoraTab(QWidget):
                 QMessageBox.critical(self, "Error", f"Error guardando archivo:\n{e}")
 
 
+class UpdaterWorker(QThread):
+    """Worker thread para descargar actualizaciones sin bloquear la GUI"""
+    progress = pyqtSignal(str)
+    finished = pyqtSignal(bool, str)  # (success, message)
+    
+    def run(self):
+        try:
+            self.progress.emit("🔍 Verificando actualizaciones...")
+            
+            # 1. Leer versión local
+            version_file = Path(__file__).parent / 'version.txt'
+            if not version_file.exists():
+                self.finished.emit(False, "⚠️ No se encontró archivo de versión local")
+                return
+            
+            local_version = version_file.read_text().strip()
+            self.progress.emit(f"📌 Versión actual: {local_version}")
+            
+            # 2. Obtener versión remota de GitHub
+            self.progress.emit("🌐 Conectando con GitHub...")
+            repo_url = "https://api.github.com/repos/JoshuaMzV/Scrapping-Web"
+            releases_url = f"{repo_url}/releases/tags/latest"
+            
+            response = requests.get(releases_url, timeout=10)
+            if response.status_code != 200:
+                self.finished.emit(False, "❌ No se encontró versión disponible en GitHub")
+                return
+            
+            release_data = response.json()
+            remote_version = release_data.get('tag_name', 'unknown')
+            
+            if remote_version == local_version:
+                self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
+                return
+            
+            self.progress.emit(f"📥 Nueva versión disponible: {remote_version}")
+            
+            # 3. Descargar nuevo .exe
+            assets = release_data.get('assets', [])
+            if not assets:
+                self.finished.emit(False, "❌ No se encontró archivo .exe en la release")
+                return
+            
+            exe_asset = assets[0]
+            download_url = exe_asset['browser_download_url']
+            
+            self.progress.emit("⬇️ Descargando nuevo ejecutable...")
+            
+            exe_response = requests.get(download_url, stream=True, timeout=60)
+            exe_response.raise_for_status()
+            
+            # Guardar como temporal
+            temp_exe = Path(__file__).parent / "update_new.exe"
+            with open(temp_exe, 'wb') as f:
+                for chunk in exe_response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+            
+            self.progress.emit("✅ Descarga completada")
+            
+            # 4. Crear script BAT para actualizar
+            bat_script = f"""@echo off
+timeout /t 2 /nobreak > NUL
+set OLD_EXE={Path(__file__).parent / 'CatalogoGenerator.exe'}
+set NEW_EXE={temp_exe}
+set BACKUP_EXE={Path(__file__).parent / 'CatalogoGenerator_old.exe'}
+
+if exist %OLD_EXE% (
+    ren "%OLD_EXE%" "CatalogoGenerator_old.exe"
+)
+
+move /Y "%NEW_EXE%" "%OLD_EXE%"
+
+if exist "%OLD_EXE%" (
+    start "" "%OLD_EXE%"
+)
+
+timeout /t 1 /nobreak > NUL
+del "%~f0"
+"""
+            
+            bat_file = Path(__file__).parent / "update.bat"
+            bat_file.write_text(bat_script)
+            
+            self.progress.emit("🔄 Preparando reinicio...")
+            self.finished.emit(True, "✅ Actualización descargada. Reiniciando en 3 segundos...")
+            
+            # 5. Ejecutar BAT y terminar esta aplicación
+            time.sleep(3)
+            subprocess.Popen(str(bat_file), shell=True)
+            sys.exit()
+            
+        except requests.exceptions.Timeout:
+            self.finished.emit(False, "⏱️ Timeout conectando con GitHub")
+        except requests.exceptions.ConnectionError:
+            self.finished.emit(False, "❌ Error de conexión con GitHub")
+        except Exception as e:
+            self.finished.emit(False, f"❌ Error: {str(e)}")
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -387,15 +568,56 @@ class MainWindow(QMainWindow):
         
         self.setCentralWidget(self.tabs)
         
-        # Status bar
-        self.statusBar().showMessage(f"Catálogo Generator v{VERSION} - Listo")
+        # Status bar con botón de actualización
+        status_bar = self.statusBar()
+        status_bar.showMessage(f"Catálogo Generator v{VERSION} - Listo")
+        
+        update_btn = QPushButton("🔄 Buscar Actualización")
+        update_btn.setMaximumWidth(200)
+        update_btn.clicked.connect(self.check_for_updates)
+        status_bar.addPermanentWidget(update_btn)
+        
+        self.updater_worker = None
+    
+    def check_for_updates(self):
+        """Inicia el proceso de verificación de actualizaciones"""
+        if self.updater_worker and self.updater_worker.isRunning():
+            QMessageBox.information(self, "Info", "Ya hay una actualización en progreso...")
+            return
+        
+        self.updater_worker = UpdaterWorker()
+        self.updater_worker.progress.connect(lambda msg: self.statusBar().showMessage(msg))
+        self.updater_worker.finished.connect(self.on_update_finished)
+        self.updater_worker.start()
+    
+    def on_update_finished(self, success, message):
+        """Manejador cuando termina la verificación de actualizaciones"""
+        if success:
+            QMessageBox.information(self, "Actualización", message)
+        else:
+            QMessageBox.information(self, "Verificación de Actualización", message)
 
 
 def main():
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-    sys.exit(app.exec())
+    logging.info("=" * 80)
+    logging.info(f"🚀 Iniciando Catálogo Generator v{VERSION}")
+    logging.info(f"📁 Log file: {log_file}")
+    logging.info("=" * 80)
+    
+    try:
+        app = QApplication(sys.argv)
+        logging.info("✅ QApplication creado")
+        
+        window = MainWindow()
+        logging.info("✅ MainWindow creado")
+        
+        window.show()
+        logging.info("✅ Ventana mostrada")
+        
+        sys.exit(app.exec())
+    except Exception as e:
+        logging.error(f"❌ Error en main(): {e}", exc_info=True)
+        raise
 
 
 if __name__ == '__main__':
