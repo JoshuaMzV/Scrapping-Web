@@ -4,13 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'app_gui.py'
-      - 'scrapers/**'
-      - 'src/**'
-      - 'requirements.txt'
-      - 'CatalogoGenerator_GUI.spec'
-      - 'version.txt'
 
 jobs:
   build:
@@ -37,66 +30,29 @@ jobs:
     - name: Verify .exe exists
       run: |
         if (Test-Path "dist/CatalogoGenerator.exe") {
-          Write-Host "✅ CatalogoGenerator.exe created successfully!"
+          Write-Host "✅ CatalogoGenerator.exe created!"
           $size = (Get-Item "dist/CatalogoGenerator.exe").Length / 1MB
           Write-Host "Size: $([math]::Round($size, 2)) MB"
         } else {
-          Write-Host "❌ CatalogoGenerator.exe not found!"
+          Write-Host "❌ .exe not found!"
           exit 1
         }
 
-    - name: Get latest release info
-      id: release
+    - name: Delete old release
       run: |
-        $latest = gh release view latest --json tagName,body 2>$null || echo "none"
-        if ($latest -eq "none") {
-          echo "exists=false" >> $env:GITHUB_OUTPUT
-        } else {
-          echo "exists=true" >> $env:GITHUB_OUTPUT
-        }
+        gh release delete latest --yes --cleanup-tag 2>$null || true
       env:
         GH_TOKEN: ${{ github.token }}
-      continue-on-error: true
 
-    - name: Delete previous release
-      if: steps.release.outputs.exists == 'true'
-      run: |
-        gh release delete latest --yes
-      env:
-        GH_TOKEN: ${{ github.token }}
-      continue-on-error: true
-
-    - name: Create Release
+    - name: Create latest release
       run: |
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $commit_msg = git log -1 --pretty=%B
+        $commit = git log -1 --oneline
         gh release create latest dist/CatalogoGenerator.exe `
-          --title "📦 Latest - Catálogo Generator" `
-          --notes "Built: $timestamp`n`nCommit: $commit_msg`n`n✅ Professional PyQt6 desktop interface`n✅ Nike & Sephora tabs with real-time scraping`n✅ Excel export with pricing calculations`n✅ Auto-update capability`n✅ Error logging to local file`n✅ Product sizes detection"
-      env:
-        GH_TOKEN: ${{ github.token }}
-      continue-on-error: true
-
-    - name: Upload to existing release if create failed
-      if: failure()
-      run: |
-        gh release upload latest dist/CatalogoGenerator.exe --clobber
+          --title "Latest Build" `
+          --notes "Built: $timestamp / Commit: $commit"
       env:
         GH_TOKEN: ${{ github.token }}
 
-    - name: Update version.txt
-      run: |
-        $timestamp = Get-Date -Format "yyyy.MM.dd-HHmm"
-        $timestamp | Out-File -FilePath version.txt -Encoding UTF8 -NoNewline
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
-        git add version.txt
-        git commit -m "AUTO: version bump to $timestamp" || true
-        git push
-      env:
-        GH_TOKEN: ${{ github.token }}
-
-    - name: ✅ Success
-      run: |
-        Write-Host "✅ Build complete!"
-        Write-Host "📦 Release: https://github.com/${{ github.repository }}/releases/tag/latest"
+    - name: ✅ Done
+      run: Write-Host "Build and release complete!"
