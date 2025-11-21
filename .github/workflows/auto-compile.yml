@@ -54,7 +54,7 @@ jobs:
           echo "exists=true" >> $env:GITHUB_OUTPUT
         }
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
       continue-on-error: true
 
     - name: Delete previous release
@@ -62,7 +62,7 @@ jobs:
       run: |
         gh release delete latest --yes
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
       continue-on-error: true
 
     - name: Create Release
@@ -73,7 +73,7 @@ jobs:
           --title "📦 Latest - Catálogo Generator" `
           --notes "Built: $timestamp`n`nCommit: $commit_msg`n`n✅ Professional PyQt6 desktop interface`n✅ Nike & Sephora tabs with real-time scraping`n✅ Excel export with pricing calculations`n✅ Auto-update capability`n✅ Error logging to local file`n✅ Product sizes detection"
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
       continue-on-error: true
 
     - name: Upload to existing release if create failed
@@ -81,7 +81,7 @@ jobs:
       run: |
         gh release upload latest dist/CatalogoGenerator.exe --clobber
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     - name: Update version.txt
       run: |
@@ -93,7 +93,7 @@ jobs:
         git commit -m "AUTO: version bump to $timestamp" || true
         git push
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     - name: ✅ Success
       run: |
