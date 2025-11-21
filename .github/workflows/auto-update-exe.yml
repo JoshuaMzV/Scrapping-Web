@@ -11,6 +11,10 @@ on:
       - 'requirements.txt'
       - 'CatalogoGenerator_GUI.spec'
 
+permissions:
+  contents: write
+  releases: write
+
 jobs:
   build-and-release:
     runs-on: windows-latest
@@ -53,51 +57,59 @@ jobs:
     - name: Delete old 'latest' release if exists
       continue-on-error: true
       run: |
-        gh release delete latest --yes
+        gh release delete latest --yes --repo ${{ github.repository }}
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
-    - name: Create/Update 'latest' Release with new .exe
-      uses: softprops/action-gh-release@v1
-      with:
-        files: dist/CatalogoGenerator.exe
-        tag_name: latest
-        name: "📦 Latest Version - Catálogo Generator"
-        body: |
-          # Catálogo Generator - Latest Version
-          
-          **Last Update:** ${{ github.event.head_commit.timestamp }}
-          
-          **Commit:** ${{ steps.commit_msg.outputs.message }}
-          
-          ## What's Included
-          - ✅ Professional PyQt6 desktop interface
-          - ✅ Nike & Sephora tabs with real-time scraping
-          - ✅ Excel export with pricing calculations
-          - ✅ Auto-update capability
-          - ✅ Error logging to local file
-          - ✅ All dependencies bundled
-          
-          ## How to Update
-          Open the app → Settings → Check for Updates → Restart
-          
-          Built with ❤️ using PyQt6, Selenium, Pandas
-        draft: false
-        prerelease: false
+    - name: Create 'latest' Release with new .exe using gh CLI
+      run: |
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $body = @"
+        # Catálogo Generator - Latest Version
+        
+        **Last Update:** $timestamp
+        
+        **Commit:** $(git log -1 --pretty=%B)
+        
+        ## What's Included
+        - ✅ Professional PyQt6 desktop interface
+        - ✅ Nike & Sephora tabs with real-time scraping
+        - ✅ Excel export with pricing calculations
+        - ✅ Auto-update capability
+        - ✅ Error logging to local file
+        - ✅ Product sizes detection
+        - ✅ All dependencies bundled
+        
+        ## How to Update
+        Open the app → Settings → Check for Updates → Restart
+        
+        Built with ❤️ using PyQt6, Selenium, Pandas
+        "@
+        
+        gh release create latest "dist/CatalogoGenerator.exe" `
+          --title "📦 Latest Version - Catálogo Generator" `
+          --notes $body `
+          --repo ${{ github.repository }} || `
+        gh release upload latest "dist/CatalogoGenerator.exe" `
+          --repo ${{ github.repository }} `
+          --clobber
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
 
     - name: Update version file
       run: |
         $timestamp = Get-Date -Format "yyyy.MM.dd-HHmm"
-        echo $timestamp | Out-File -FilePath version.txt -Encoding UTF8
+        $timestamp | Out-File -FilePath version.txt -Encoding UTF8
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         git add version.txt
         git commit -m "AUTO: Update version timestamp to $timestamp" || true
         git push
+      env:
+        GH_TOKEN: ${{ github.token }}
 
-    - name: Notify in commit
+    - name: ✅ Workflow completed
       run: |
-        Write-Host "✅ Compilation complete and released!"
-        Write-Host "📥 New .exe available at: https://github.com/${{ github.repository }}/releases/tag/latest"
+        Write-Host "✅ .exe compilado y publicado en releases/tag/latest"
+        Write-Host "📥 URL: https://github.com/${{ github.repository }}/releases/tag/latest"
+        Write-Host "🔄 Los usuarios pueden actualizar desde la app con el botón 'Buscar Actualización'"
