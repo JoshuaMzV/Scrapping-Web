@@ -1,10 +1,33 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-Especificación para PyInstaller - PyQt6 GUI
+Especificación para PyInstaller - PyQt6 GUI (Debug Version)
 """
 import sys
 import os
-from PyInstaller.utils.hooks import collect_all, collect_submodules
+import importlib.util
+
+# --- DEBUG SECTION ---
+print("--- DEBUG: SYS.PATH ---")
+for p in sys.path:
+    print(p)
+print("-----------------------")
+
+def check_import(name):
+    try:
+        spec = importlib.util.find_spec(name)
+        if spec:
+            print(f"DEBUG: Found {name} at {spec.origin}")
+        else:
+            print(f"DEBUG: Could NOT find {name} (spec is None)")
+    except Exception as e:
+        print(f"DEBUG: Error finding {name}: {e}")
+
+check_import('requests')
+check_import('pandas')
+check_import('selenium')
+check_import('PyQt6')
+check_import('openpyxl')
+# ---------------------
 
 block_cipher = None
 basedir = os.path.abspath('.')
@@ -14,22 +37,12 @@ datas = []
 binaries = []
 hiddenimports = []
 
-# 1. Recopilar PyQt6 completo (necesario para plugins/estilos)
-try:
-    tmp_ret = collect_all('PyQt6')
-    datas += tmp_ret[0]
-    binaries += tmp_ret[1]
-    hiddenimports += tmp_ret[2]
-except Exception as e:
-    print(f"Warning: Could not collect PyQt6: {e}")
-
-# 2. Agregar archivos del proyecto
+# Agregar archivos del proyecto
 datas.append((os.path.join(basedir, 'scrapers'), 'scrapers'))
 datas.append((os.path.join(basedir, 'src'), 'src'))
 datas.append((os.path.join(basedir, 'version.txt'), '.'))
 
-# 3. Imports ocultos explícitos para asegurar que PyInstaller los vea
-# Estos módulos suelen tener hooks, pero los forzamos por si acaso
+# Imports ocultos explícitos
 hiddenimports += [
     'scrapers.nike',
     'scrapers.sephora',
@@ -54,11 +67,6 @@ hiddenimports += [
     'pathlib',
     'threading'
 ]
-
-# Recopilar submodulos de paquetes grandes para evitar problemas de importación
-hiddenimports += collect_submodules('selenium')
-hiddenimports += collect_submodules('pandas')
-hiddenimports += collect_submodules('requests')
 
 a = Analysis(
     ['app_gui.py'],
