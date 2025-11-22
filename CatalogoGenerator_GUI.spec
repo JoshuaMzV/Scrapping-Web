@@ -4,10 +4,20 @@ Especificación para PyInstaller - PyQt6 GUI
 """
 import sys
 import os
+import site
 from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 basedir = os.path.abspath('.')
+
+# Intentar obtener site-packages
+try:
+    site_packages = site.getsitepackages()
+except AttributeError:
+    # Fallback para virtualenvs que a veces no tienen getsitepackages
+    site_packages = [os.path.join(sys.prefix, 'Lib', 'site-packages')]
+
+print(f"DEBUG: Site packages: {site_packages}")
 
 # Recopilar todas las dependencias importantes
 datas = []
@@ -28,18 +38,17 @@ packages_to_collect = [
 ]
 
 for package in packages_to_collect:
-    try:
-        tmp_ret = collect_all(package)
-        datas += tmp_ret[0]
-        binaries += tmp_ret[1]
-        hiddenimports += tmp_ret[2]
-    except Exception as e:
-        print(f"Warning: Could not collect {package}: {e}")
+    print(f"Collecting {package}...")
+    # Eliminamos try-except para que falle si no encuentra algo
+    tmp_ret = collect_all(package)
+    datas += tmp_ret[0]
+    binaries += tmp_ret[1]
+    hiddenimports += tmp_ret[2]
 
 # 2. Agregar archivos del proyecto
 datas.append((os.path.join(basedir, 'scrapers'), 'scrapers'))
 datas.append((os.path.join(basedir, 'src'), 'src'))
-datas.append((os.path.join(basedir, 'version.txt'), '.'))  # Incluir version.txt en la raíz
+datas.append((os.path.join(basedir, 'version.txt'), '.'))
 
 # 3. Imports ocultos adicionales explícitos
 hiddenimports += [
@@ -47,11 +56,12 @@ hiddenimports += [
     'scrapers.sephora',
     'src.config.settings',
     'openpyxl',
+    'requests', # Forzar requests
 ]
 
 a = Analysis(
     ['app_gui.py'],
-    pathex=[basedir],
+    pathex=[basedir] + site_packages, # Agregar site-packages explícitamente
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -78,7 +88,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False, # GUI application
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
