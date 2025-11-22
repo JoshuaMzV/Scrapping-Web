@@ -1,69 +1,53 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-Especificación simplificada para PyInstaller - PyQt6 GUI
+Especificación para PyInstaller - PyQt6 GUI
 """
 import sys
 import os
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 basedir = os.path.abspath('.')
 
+# Recopilar todas las dependencias importantes
 datas = []
 binaries = []
-hiddenimports = [
-    # PyQt6 - Requerimientos mínimos
-    'PyQt6.QtCore',
-    'PyQt6.QtGui',
-    'PyQt6.QtWidgets',
-    
-    # HTTP requests (para auto-update)
+hiddenimports = []
+
+# 1. Recopilar dependencias complejas
+packages_to_collect = [
+    'PyQt6',
+    'selenium',
+    'pandas',
+    'webdriver_manager',
     'requests',
-    'urllib3',
     'certifi',
-    'charset_normalizer',
+    'urllib3',
     'idna',
-    
-    # Selenium
-    'selenium.webdriver.chrome.service',
-    'selenium.webdriver.common.by',
-    'selenium.webdriver.support',
-    'selenium.webdriver.support.ui',
-    'selenium.webdriver.support.expected_conditions',
-    'webdriver_manager.chrome',
-    'webdriver_manager.drivers.chrome',
-    
-    # Pandas
-    'pandas.core.arrays',
-    'pandas.core.computation',
-    'pandas._libs',
-    
-    # NumPy
-    'numpy.core._multiarray_umath',
-    'numpy.random',
-    
-    # OpenPyXL
-    'openpyxl.cell._writer',
-    'openpyxl.worksheet',
-    'openpyxl.utils.dataframe',
-    
-    # Proyecto
+    'charset_normalizer'
+]
+
+for package in packages_to_collect:
+    try:
+        tmp_ret = collect_all(package)
+        datas += tmp_ret[0]
+        binaries += tmp_ret[1]
+        hiddenimports += tmp_ret[2]
+    except Exception as e:
+        print(f"Warning: Could not collect {package}: {e}")
+
+# 2. Agregar archivos del proyecto
+datas.append((os.path.join(basedir, 'scrapers'), 'scrapers'))
+datas.append((os.path.join(basedir, 'src'), 'src'))
+datas.append((os.path.join(basedir, 'version.txt'), '.'))  # Incluir version.txt en la raíz
+
+# 3. Imports ocultos adicionales explícitos
+hiddenimports += [
     'scrapers.nike',
     'scrapers.sephora',
     'src.config.settings',
+    'openpyxl',
 ]
-
-# Datos adicionales
-datas.append((os.path.join(basedir, 'scrapers'), 'scrapers'))
-datas.append((os.path.join(basedir, 'src'), 'src'))
-
-# Recopilar solo lo esencial de PyQt6
-try:
-    pkg_datas, pkg_binaries, _ = collect_all('PyQt6')
-    datas += pkg_datas
-    binaries += pkg_binaries
-except:
-    pass
 
 a = Analysis(
     ['app_gui.py'],
@@ -74,7 +58,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'tkinter', 'test', 'tests', 'PyQt5'],
+    excludes=['matplotlib', 'tkinter', 'test', 'tests', 'notebook', 'ipython'],
     noarchive=False,
     optimize=0,
 )
@@ -94,7 +78,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=False, # GUI application
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

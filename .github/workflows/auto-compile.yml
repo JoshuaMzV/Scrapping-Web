@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
 
 permissions:
   contents: write
@@ -14,6 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Important for git history if needed
 
     - name: Set up Python 3.11
       uses: actions/setup-python@v4
@@ -25,6 +30,35 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
+
+    - name: Increment Version
+      id: version
+      shell: pwsh
+      run: |
+        $versionFile = "version.txt"
+        if (Test-Path $versionFile) {
+            $currentVersion = Get-Content $versionFile
+            $parts = $currentVersion.Split('.')
+            $major = $parts[0]
+            $minor = $parts[1]
+            $patch = [int]$parts[2] + 1
+            $newVersion = "$major.$minor.$patch"
+        } else {
+            $newVersion = "1.0.0"
+        }
+        Set-Content -Path $versionFile -Value $newVersion
+        Write-Host "New Version: $newVersion"
+        echo "new_version=$newVersion" >> $env:GITHUB_OUTPUT
+
+    - name: Commit Version Bump
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git add version.txt
+        git commit -m "Bump version to ${{ steps.version.outputs.new_version }} [skip ci]"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build .exe with PyInstaller
       run: |
@@ -45,17 +79,17 @@ jobs:
       run: |
         gh release delete latest --yes --cleanup-tag 2>$null || true
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create latest release
       run: |
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $commit = git log -1 --oneline
         gh release create latest dist/CatalogoGenerator.exe `
-          --title "Latest Build" `
-          --notes "Built: $timestamp / Commit: $commit"
+          --title "v${{ steps.version.outputs.new_version }}" `
+          --notes "Auto-generated release. Built: $timestamp" `
+          --target main
       env:
-        GH_TOKEN: ${{ github.token }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: ✅ Done
       run: Write-Host "Build and release complete!"

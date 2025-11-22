@@ -445,12 +445,22 @@ class UpdaterWorker(QThread):
             self.progress.emit("🔍 Verificando actualizaciones...")
             
             # 1. Leer versión local
-            version_file = Path(__file__).parent / 'version.txt'
-            if not version_file.exists():
-                self.finished.emit(False, "⚠️ No se encontró archivo de versión local")
-                return
+            # Si está congelado (exe), usar sys._MEIPASS
+            if getattr(sys, 'frozen', False):
+                base_path = sys._MEIPASS
+            else:
+                base_path = os.path.dirname(os.path.abspath(__file__))
+                
+            version_file = os.path.join(base_path, 'version.txt')
             
-            local_version = version_file.read_text().strip()
+            if not os.path.exists(version_file):
+                # Fallback si no existe (ej. desarrollo)
+                local_version = "0.0.0"
+                logging.warning("No se encontró version.txt, usando 0.0.0")
+            else:
+                with open(version_file, 'r') as f:
+                    local_version = f.read().strip()
+            
             self.progress.emit(f"📌 Versión actual: {local_version}")
             
             # 2. Obtener versión remota de GitHub
@@ -464,12 +474,24 @@ class UpdaterWorker(QThread):
                 return
             
             release_data = response.json()
-            remote_version = release_data.get('tag_name', 'unknown')
+            # IMPORTANTE: Usamos el Título (name) para la versión, ya que el tag siempre es 'latest'
+            remote_version_str = release_data.get('name', 'v0.0.0')
+            
+            # Limpiar 'v' del inicio si existe
+            remote_version = remote_version_str.lower().replace('v', '').strip()
+            
+            logging.info(f"Versión local: {local_version}, Remota: {remote_version}")
             
             if remote_version == local_version:
                 self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
                 return
             
+            # Comparación simple de strings (idealmente usar semver, pero esto funciona si formato es igual)
+            # Si remote > local
+            if remote_version <= local_version:
+                 self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
+                 return
+
             self.progress.emit(f"📥 Nueva versión disponible: {remote_version}")
             
             # 3. Descargar nuevo .exe
@@ -487,7 +509,14 @@ class UpdaterWorker(QThread):
             exe_response.raise_for_status()
             
             # Guardar como temporal
-            temp_exe = Path(__file__).parent / "update_new.exe"
+            # Usamos el directorio del ejecutable actual para guardar el temporal
+            if getattr(sys, 'frozen', False):
+                current_dir = os.path.dirname(sys.executable)
+            else:
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                
+            temp_exe = os.path.join(current_dir, "update_new.exe")
+            
             with open(temp_exe, 'wb') as f:
                 for chunk in exe_response.iter_content(chunk_size=8192):
                     if chunk:
@@ -496,35 +525,40 @@ class UpdaterWorker(QThread):
             self.progress.emit("✅ Descarga completada")
             
             # 4. Crear script BAT para actualizar
+            current_exe = sys.executable if getattr(sys, 'frozen', False) else os.path.join(current_dir, "app_gui.py")
+            old_exe_name = "CatalogoGenerator_old.exe"
+            
             bat_script = f"""@echo off
 timeout /t 2 /nobreak > NUL
-set OLD_EXE={Path(__file__).parent / 'CatalogoGenerator.exe'}
-set NEW_EXE={temp_exe}
-set BACKUP_EXE={Path(__file__).parent / 'CatalogoGenerator_old.exe'}
+set OLD_EXE="{current_exe}"
+set NEW_EXE="{temp_exe}"
+set BACKUP_EXE="{os.path.join(current_dir, old_exe_name)}"
 
 if exist %OLD_EXE% (
-    ren "%OLD_EXE%" "CatalogoGenerator_old.exe"
+    del %BACKUP_EXE% 2>NUL
+    move /Y %OLD_EXE% %BACKUP_EXE%
 )
 
-move /Y "%NEW_EXE%" "%OLD_EXE%"
+move /Y %NEW_EXE% %OLD_EXE%
 
-if exist "%OLD_EXE%" (
-    start "" "%OLD_EXE%"
+if exist %OLD_EXE% (
+    start "" %OLD_EXE%
 )
 
 timeout /t 1 /nobreak > NUL
 del "%~f0"
 """
             
-            bat_file = Path(__file__).parent / "update.bat"
-            bat_file.write_text(bat_script)
+            bat_file = os.path.join(current_dir, "update.bat")
+            with open(bat_file, 'w') as f:
+                f.write(bat_script)
             
             self.progress.emit("🔄 Preparando reinicio...")
             self.finished.emit(True, "✅ Actualización descargada. Reiniciando en 3 segundos...")
             
             # 5. Ejecutar BAT y terminar esta aplicación
             time.sleep(3)
-            subprocess.Popen(str(bat_file), shell=True)
+            subprocess.Popen(bat_file, shell=True)
             sys.exit()
             
         except requests.exceptions.Timeout:
@@ -532,6 +566,7 @@ del "%~f0"
         except requests.exceptions.ConnectionError:
             self.finished.emit(False, "❌ Error de conexión con GitHub")
         except Exception as e:
+            logging.error(f"Error actualización: {e}", exc_info=True)
             self.finished.emit(False, f"❌ Error: {str(e)}")
 
 
