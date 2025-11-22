@@ -63,7 +63,7 @@ jobs:
 
     - name: Build .exe with PyInstaller
       run: |
-        pyinstaller CatalogoGenerator_GUI.spec --distpath dist --workpath build --clean
+        python -m PyInstaller CatalogoGenerator_GUI.spec --distpath dist --workpath build --clean
 
     - name: Verify .exe exists
       run: |
