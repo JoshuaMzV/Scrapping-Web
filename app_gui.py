@@ -627,6 +627,7 @@ class MainWindow(QMainWindow):
     
     def on_update_finished(self, success, message):
         """Manejador cuando termina la verificación de actualizaciones"""
+        self.statusBar().showMessage(f"Catálogo Generator v{VERSION} - Listo")
         if success:
             QMessageBox.information(self, "Actualización", message)
         else:

@@ -42,7 +42,25 @@ FACTOR_DESCUENTO_VENTA = 0.90
 GITHUB_REPO_URL = 'https://github.com/JoshuaMzV/Scrapping-Web'
 GITHUB_REPO_OWNER = 'JoshuaMzV'
 GITHUB_REPO_NAME = 'Scrapping-Web'
-VERSION = '3.0.0'
+# VERSION HANDLING
+def get_version():
+    try:
+        # Determinar ruta base
+        if hasattr(os.sys, 'frozen') and hasattr(os.sys, '_MEIPASS'):
+            base_path = os.sys._MEIPASS
+        else:
+            base_path = BASE_DIR
+            
+        version_file = os.path.join(base_path, 'version.txt')
+        
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    return '3.0.0' # Fallback
+
+VERSION = get_version()
 LAST_UPDATE = datetime.now().strftime('%d/%m/%Y')
 
 # MARCAS SOPORTADAS
