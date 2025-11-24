@@ -15,3 +15,4 @@ click
 itsdangerous
 MarkupSafe
 PyQt6
+pyperclip

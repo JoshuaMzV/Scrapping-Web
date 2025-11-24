@@ -37,13 +37,16 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, QUrl
 from PyQt6.QtGui import QFont, QColor, QIcon
+from PyQt6.QtGui import QFont, QColor, QIcon
 import pandas as pd
+import pyperclip
+import winsound
 
 # Importar funciones de scraping
 try:
     from scrapers.nike import scrape_nike, calcular_precios as nike_calcular, limpiar_precio as nike_limpiar
     from scrapers.sephora import scrape_sephora, calcular_precios as sephora_calcular, limpiar_precio as sephora_limpiar
-    from src.config.settings import VERSION
+    from src.config.settings import VERSION, PALABRAS_CLAVE_CON_TALLAS, PALABRAS_CLAVE_SIN_TALLAS
     logging.info("✅ Scrapers importados correctamente")
 except ImportError as e:
     logging.error(f"❌ Error al importar scrapers: {e}")
@@ -191,11 +194,45 @@ class ScrapingThread(QThread):
             error_msg = f"Error general: {str(e)}"
             logging.error(error_msg, exc_info=True)
             if self.driver:
-                try:
-                    self.driver.quit()
-                except:
                     pass
             self.error.emit(error_msg)
+
+
+class ClipboardMonitor(QThread):
+    """Monitorea el portapapeles en busca de URLs de productos"""
+    url_detected = pyqtSignal(str)  # Solo envía la URL
+
+    def __init__(self):
+        super().__init__()
+        self.running = True
+        self.last_text = ""
+
+    def run(self):
+        try:
+            import pyperclip
+            import winsound
+        except ImportError as e:
+            logging.error(f"Error importando dependencias de ClipboardMonitor: {e}")
+            return
+
+        while self.running:
+            try:
+                text = pyperclip.paste().strip()
+                if text and text != self.last_text:
+                    self.last_text = text
+                    if text.startswith('http'):
+                        # Simple: Detecta URL y emite señal
+                        # La lógica de "a qué tab va" se maneja en MainWindow
+                        winsound.Beep(1000, 200)
+                        self.url_detected.emit(text)
+            except Exception as e:
+                logging.error(f"Error en ClipboardMonitor: {e}")
+            
+            time.sleep(1.0)
+
+    def stop(self):
+        self.running = False
+        self.wait()
 
 
 class NikeTab(QWidget):
@@ -209,7 +246,7 @@ class NikeTab(QWidget):
         layout = QVBoxLayout()
         
         # Título
-        titulo = QLabel("🔍 Scraping Nike")
+        titulo = QLabel("🔍 Scraping Moda (Nike, Adidas, etc.)")
         titulo.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         layout.addWidget(titulo)
         
@@ -260,6 +297,25 @@ class NikeTab(QWidget):
         
         self.setLayout(layout)
         self.datos_scrapeados = []
+
+    def process_url(self, url):
+        """Procesa una URL externa (Clipboard Monitor)"""
+        current_text = self.urls_input.toPlainText()
+        if current_text:
+            self.urls_input.append(url)
+        else:
+            self.urls_input.setText(url)
+            
+        self.log.append(f"🤖 Link detectado y agregado: {url}")
+        # No iniciamos scraping automáticamente, solo agregamos a la cola
+
+    def append_result(self, result):
+        if result['success']:
+            new_data = result['data']
+            self.datos_scrapeados.extend(new_data)
+            self.mostrar_resultados()
+            self.download_btn.setEnabled(True)
+            self.log.append(f"✅ Auto-captura completada: {len(new_data)} productos")
 
     def iniciar_scraping(self):
         urls = self.urls_input.toPlainText().strip().split('\n')
@@ -330,7 +386,7 @@ class SephoraTab(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
         
-        titulo = QLabel("🔍 Scraping Sephora")
+        titulo = QLabel("🔍 Scraping Cosméticos (Sephora, etc.)")
         titulo.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         layout.addWidget(titulo)
         
@@ -375,6 +431,25 @@ class SephoraTab(QWidget):
         
         self.setLayout(layout)
         self.datos_scrapeados = []
+
+    def process_url(self, url):
+        """Procesa una URL externa (Clipboard Monitor)"""
+        current_text = self.urls_input.toPlainText()
+        if current_text:
+            self.urls_input.append(url)
+        else:
+            self.urls_input.setText(url)
+            
+        self.log.append(f"🤖 Link detectado y agregado: {url}")
+        # No iniciamos scraping automáticamente, solo agregamos a la cola
+
+    def append_result(self, result):
+        if result['success']:
+            new_data = result['data']
+            self.datos_scrapeados.extend(new_data)
+            self.mostrar_resultados()
+            self.download_btn.setEnabled(True)
+            self.log.append(f"✅ Auto-captura completada: {len(new_data)} productos")
 
     def iniciar_scraping(self):
         urls = self.urls_input.toPlainText().strip().split('\n')
@@ -598,10 +673,22 @@ class MainWindow(QMainWindow):
         self.nike_tab = NikeTab()
         self.sephora_tab = SephoraTab()
         
-        self.tabs.addTab(self.nike_tab, "👟 Nike")
-        self.tabs.addTab(self.sephora_tab, "💄 Sephora")
+        self.tabs.addTab(self.nike_tab, "👟 Moda")
+        self.tabs.addTab(self.sephora_tab, "💄 Cosméticos")
         
         self.setCentralWidget(self.tabs)
+        
+        # Toolbar para Auto-Capture
+        toolbar = self.addToolBar("Herramientas")
+        self.auto_capture_btn = QPushButton("🔴 Auto-Capture: OFF")
+        self.auto_capture_btn.setCheckable(True)
+        self.auto_capture_btn.clicked.connect(self.toggle_auto_capture)
+        self.auto_capture_btn.setStyleSheet("color: red; font-weight: bold;")
+        toolbar.addWidget(self.auto_capture_btn)
+        
+        # Clipboard Monitor
+        self.clipboard_monitor = ClipboardMonitor()
+        self.clipboard_monitor.url_detected.connect(self.on_clipboard_url_detected)
         
         # Status bar con botón de actualización
         status_bar = self.statusBar()
@@ -632,6 +719,29 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Actualización", message)
         else:
             QMessageBox.information(self, "Verificación de Actualización", message)
+
+    def toggle_auto_capture(self, checked):
+        if checked:
+            self.auto_capture_btn.setText("🟢 Auto-Capture: ON")
+            self.auto_capture_btn.setStyleSheet("color: #00ff00; font-weight: bold;")
+            self.clipboard_monitor.start()
+            self.statusBar().showMessage("Monitor de portapapeles activado")
+        else:
+            self.auto_capture_btn.setText("🔴 Auto-Capture: OFF")
+            self.auto_capture_btn.setStyleSheet("color: red; font-weight: bold;")
+            self.clipboard_monitor.stop()
+            self.statusBar().showMessage("Monitor de portapapeles desactivado")
+
+    def on_clipboard_url_detected(self, url):
+        # Obtener el índice del tab actual
+        current_index = self.tabs.currentIndex()
+        
+        if current_index == 0:
+            self.nike_tab.process_url(url)
+            self.statusBar().showMessage(f"🔗 Link agregado a Moda: {url}")
+        elif current_index == 1:
+            self.sephora_tab.process_url(url)
+            self.statusBar().showMessage(f"🔗 Link agregado a Cosméticos: {url}")
 
 
 def main():
