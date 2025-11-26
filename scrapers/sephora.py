@@ -41,8 +41,23 @@ def scrape_sephora_desde_sephora_com(driver, wait, url):
             imagen = driver.find_element(By.CSS_SELECTOR, 'img[src*="/sku/"]').get_attribute('src')
         except:
             pass
+            
+        # Extraer Marca (Stage 2)
+        marca_pagina = None
+        try:
+            marca_element = driver.find_element(By.CSS_SELECTOR, '[data-at="brand_name"]')
+            marca_pagina = marca_element.text.strip()
+        except:
+            pass
         
-        return {"nombre": nombre, "precio": precio_str, "imagen": imagen, "tallas": "N/A", "sitio": "Sephora.com"}
+        return {
+            "nombre": nombre, 
+            "precio": precio_str, 
+            "imagen": imagen, 
+            "tallas": "N/A", 
+            "sitio": "Sephora.com",
+            "marca": marca_pagina
+        }
     except Exception as e:
         print(f"    ❌ Error en Sephora.com: {str(e)[:50]}")
         return None
@@ -316,8 +331,18 @@ def scrape_sephora(driver, wait, url):
         print(" eBay")
         return scrape_sephora_desde_ebay(driver, wait, url)
     else:
-        print(" Sitio desconocido")
-        return None
+        print(f" Sitio no reconocido ({url}). Intentando Scraper Genérico...")
+        try:
+            from .generic import scrape_generic
+            return scrape_generic(driver, wait, url)
+        except ImportError:
+            # Fallback por si la importación relativa falla (ej. ejecución directa)
+            try:
+                from scrapers.generic import scrape_generic
+                return scrape_generic(driver, wait, url)
+            except Exception as e:
+                print(f"    ❌ Error importando scraper genérico: {e}")
+                return None
 
 
 def calcular_precios(precio_usd):

@@ -42,6 +42,9 @@ FACTOR_DESCUENTO_VENTA = 0.90
 GITHUB_REPO_URL = 'https://github.com/JoshuaMzV/Scrapping-Web'
 GITHUB_REPO_OWNER = 'JoshuaMzV'
 GITHUB_REPO_NAME = 'Scrapping-Web'
+# DISCORD CONFIGURATION
+DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1443376626267193456/NbqARmvP9Hp_UqdzXjBG3z8-0isCUoMWACvA0NR4lwhLaRc6LVypnMIVYPbxNp79gZSb'
+
 # VERSION HANDLING
 def get_version():
     try:
@@ -68,6 +71,76 @@ MARCAS_SOPORTADAS = {
     'nike': 'Nike',
     'sephora': 'Sephora'
 }
+
+# 1. LISTAS MAESTRAS DE MARCAS (Nombres Canónicos)
+RAW_MODA_BRANDS = [
+    'Nike', 'Jordan', 'Adidas', 'Yeezy', 'Puma', 'New Balance', 'Under Armour',
+    'Gucci', 'Prada', 'Zara', 'H&M', 'Shein', 'Forever 21', 'Bershka', 'Pull&Bear',
+    'Stradivarius', 'Massimo Dutti', 'Mango', 'ASOS', 'Boohoo', 'Fashion Nova',
+    'Gymshark', 'Lululemon', 'Alo Yoga', 'Fabletics', 'Victoria\'s Secret',
+    'Calvin Klein', 'Tommy Hilfiger', 'Ralph Lauren', 'Lacoste', 'Hugo Boss',
+    'Versace', 'Dolce & Gabbana', 'Burberry', 'Fendi', 'Balenciaga',
+    'Saint Laurent', 'Alexander McQueen', 'Off-White', 'Supreme',
+    'BAPE', 'Kith', 'Palace', 'Stussy', 'Obey', 'Vans', 'Converse', 'Reebok',
+    'Asics', 'Saucony', 'Brooks', 'Hoka', 'On Running', 'Salomon', 'Timberland',
+    'Dr. Martens', 'UGG', 'Crocs', 'Birkenstock', 'Clarks', 'Steve Madden',
+    'Aldo', 'Nine West', 'Michael Kors', 'Coach', 'Kate Spade', 'Tory Burch',
+    'Marc Jacobs'
+]
+
+RAW_COSMETICS_BRANDS = [
+    'Ulta', 'MAC', 'MAC Cosmetics', 'NARS', 'Urban Decay', 'Fenty Beauty', 'Huda Beauty',
+    'Anastasia Beverly Hills', 'Too Faced', 'Benefit', 'Tarte', 'Smashbox',
+    'Clinique', 'Estée Lauder', 'Lancôme', 'Dior', 'Dior Makeup', 'Chanel', 'Chanel Makeup',
+    'YSL Beauty', 'Yves Saint Laurent', 'Giorgio Armani Beauty', 'Tom Ford Beauty', 'Charlotte Tilbury',
+    'Pat McGrath', 'Natasha Denona', 'Kylie Cosmetics', 'Rare Beauty', 'Glossier',
+    'ColourPop', 'Morphe', 'NYX', 'Maybelline', 'L\'Oréal', 'Revlon', 'CoverGirl',
+    'e.l.f.', 'Wet n Wild', 'Milani', 'Physicians Formula', 'Neutrogena', 'CeraVe',
+    'La Roche-Posay', 'Vichy', 'Avène', 'Bioderma', 'The Ordinary',
+    'Paula\'s Choice', 'Drunk Elephant', 'Tatcha', 'Laneige', 'Glow Recipe',
+    'Sunday Riley', 'Farmacy', 'Fresh', 'Kiehl\'s', 'Origins', 'Shiseido',
+    'SK-II', 'La Mer', 'Sisley', 'Clarins', 'L\'Occitane', 'Bath & Body Works',
+    'Victoria\'s Secret Beauty', 'Lush', 'The Body Shop', 'Aesop', 'Le Labo',
+    'Diptyque', 'Byredo', 'Jo Malone', 'Creed', 'Maison Francis Kurkdjian',
+    'Parfums de Marly', 'Roja Parfums', 'Xerjoff', 'Amouage', 'Montale',
+    'Mancera', 'Nishane', 'BDK Parfums', 'Goldfield & Banks', 'Imaginary Authors',
+    'Zoologist', 'Dieux', 'Sol de Janeiro', 'Olehenriksen', 'Touchland', 'Saie',
+    'Elemis', 'Josie Maran', 'Supergoop!', 'Abeille Royale', 'Carolina Herrera',
+    'Givenchy', 'Guerlain', 'Bare Minerals', 'Valentino'
+]
+
+RAW_TECH_BRANDS = [
+    'Apple', 'Samsung', 'Sony', 'Dell', 'HP'
+]
+
+# 2. ALIAS MANUALES (Variaciones -> Nombre Canónico)
+BRAND_ALIASES = {
+    'fenty belleza': 'Fenty Beauty',
+    'cosméticos mac': 'MAC Cosmetics',
+    'cosméticos nars': 'NARS',
+    'minerales desnudos': 'Bare Minerals',
+    'cosméticos nyx': 'NYX',
+    'olehenrik sen': 'Olehenriksen',
+    'ysl': 'Yves Saint Laurent',
+    'mac': 'MAC Cosmetics',
+}
+
+# 3. GENERACIÓN AUTOMÁTICA
+CATEGORIA_MODA = set(RAW_MODA_BRANDS)
+CATEGORIA_COSMETICOS = set(RAW_COSMETICS_BRANDS)
+
+MARCAS_KEYWORDS = {}
+
+def _add_brands(brand_list):
+    for brand in brand_list:
+        MARCAS_KEYWORDS[brand.lower()] = brand
+
+_add_brands(RAW_MODA_BRANDS)
+_add_brands(RAW_COSMETICS_BRANDS)
+_add_brands(RAW_TECH_BRANDS)
+
+# Sobrescribir con alias
+MARCAS_KEYWORDS.update(BRAND_ALIASES)
 
 # PALABRAS CLAVE PARA DETECCIÓN DE PRODUCTOS CON TALLAS
 PALABRAS_CLAVE_CON_TALLAS = [
