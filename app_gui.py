@@ -795,17 +795,18 @@ class UpdaterWorker(QThread):
             url = f"https://api.github.com/repos/{repo}/releases/latest"
             
             headers = {"Accept": "application/vnd.github.v3+json"}
-            # Si es repo privado, necesitas token:
-            # headers["Authorization"] = "token TU_TOKEN"
             
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             
             release_data = response.json()
-            remote_version = release_data['tag_name'].replace('v', '')
+            remote_version = release_data['tag_name'].replace('v', '').strip()
+            local_version = str(local_version).replace('v', '').strip()
+            
+            logging.info(f"Verificando actualizaciones: Local='{local_version}' vs Remote='{remote_version}'")
             
             # Comparación simple de strings (idealmente usar semver, pero esto funciona si formato es igual)
-            # Si remote > local
+            # Si remote <= local, no hay update
             if remote_version <= local_version:
                  self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
                  return
