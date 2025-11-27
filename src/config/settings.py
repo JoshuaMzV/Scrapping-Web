@@ -4,6 +4,32 @@ Configuración centralizada de la aplicación
 import os
 from datetime import datetime
 
+# VERSION HANDLING
+def get_version():
+    """Return the application version.
+    Priority:
+    1. Environment variable APP_VERSION (set by CI).
+    2. version.txt at project root (two levels up from this file).
+    3. Fallback to '3.0.0'.
+    """
+    # 1. Check environment variable
+    env_version = os.getenv('APP_VERSION')
+    if env_version:
+        return env_version.strip()
+    # 2. Look for version.txt in project root
+    try:
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+        version_file = os.path.join(base_path, 'version.txt')
+        if os.path.exists(version_file):
+            with open(version_file, 'r') as f:
+                return f.read().strip()
+    except Exception:
+        pass
+    # 3. Fallback
+    return '3.0.0'
+
+VERSION = get_version()
+
 # CONFIGURACIÓN DE DIRECTORIOS
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,36 +67,7 @@ FACTOR_DESCUENTO_VENTA = 0.90
 # CONFIGURACIÓN DE GITHUB
 GITHUB_REPO_URL = 'https://github.com/JoshuaMzV/Scrapping-Web'
 GITHUB_REPO_OWNER = 'JoshuaMzV'
-GITHUB_REPO_NAME = 'Scrapping-Web'
-# DISCORD CONFIGURATION
-DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1443376626267193456/NbqARmvP9Hp_UqdzXjBG3z8-0isCUoMWACvA0NR4lwhLaRc6LVypnMIVYPbxNp79gZSb'
 
-# VERSION HANDLING
-def get_version():
-    try:
-        # Determinar ruta base
-        if hasattr(os.sys, 'frozen') and hasattr(os.sys, '_MEIPASS'):
-            base_path = os.sys._MEIPASS
-        else:
-            base_path = BASE_DIR
-            
-        version_file = os.path.join(base_path, 'version.txt')
-        
-        if os.path.exists(version_file):
-            with open(version_file, 'r') as f:
-                return f.read().strip()
-    except Exception:
-        pass
-    return '3.0.0' # Fallback
-
-VERSION = get_version()
-LAST_UPDATE = datetime.now().strftime('%d/%m/%Y')
-
-# MARCAS SOPORTADAS
-MARCAS_SOPORTADAS = {
-    'nike': 'Nike',
-    'sephora': 'Sephora'
-}
 
 # 1. LISTAS MAESTRAS DE MARCAS (Nombres Canónicos)
 RAW_MODA_BRANDS = [

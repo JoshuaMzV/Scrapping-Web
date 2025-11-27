@@ -800,16 +800,34 @@ class UpdaterWorker(QThread):
             response.raise_for_status()
             
             release_data = response.json()
-            remote_version = release_data['tag_name'].replace('v', '').strip()
+            # GitHub Actions uses 'latest' as tag, but puts the version in 'name' (e.g. "v3.0.12")
+            remote_version_raw = release_data.get('name', '')
+            if not remote_version_raw or 'latest' in remote_version_raw.lower():
+                 remote_version_raw = release_data.get('tag_name', '')
+            
+            remote_version = remote_version_raw.replace('v', '').strip()
             local_version = str(local_version).replace('v', '').strip()
             
+            # Comparación semántica de versiones
+            def parse_version(v):
+                return [int(x) for x in v.split('.')] if v else [0]
+
             logging.info(f"Verificando actualizaciones: Local='{local_version}' vs Remote='{remote_version}'")
             
-            # Comparación simple de strings (idealmente usar semver, pero esto funciona si formato es igual)
-            # Si remote <= local, no hay update
-            if remote_version <= local_version:
-                 self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
-                 return
+            try:
+                remote_parts = parse_version(remote_version)
+                local_parts = parse_version(local_version)
+                
+                # Si remote <= local, no hay update
+                if remote_parts <= local_parts:
+                     self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
+                     return
+            except Exception as e:
+                logging.error(f"Error comparando versiones: {e}")
+                # Fallback a string comparison si falla el parseo
+                if remote_version <= local_version:
+                     self.finished.emit(False, f"✅ Ya tienes la versión más reciente: {local_version}")
+                     return
 
             self.progress.emit(f"📥 Nueva versión disponible: {remote_version}")
             
