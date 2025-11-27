@@ -933,7 +933,26 @@ class MainWindow(QMainWindow):
         self.auto_capture_btn.setStyleSheet("color: red; font-weight: bold;")
         toolbar.addWidget(self.auto_capture_btn)
         
+        # Clipboard Monitor
+        self.clipboard_monitor = ClipboardMonitor()
+        self.clipboard_monitor.url_detected.connect(self.on_clipboard_url_detected)
+        
         self.updater_worker = None
+
+        # Status bar con botón de actualización
+        status_bar = self.statusBar()
+        status_bar.showMessage(f"Catálogo Generator v{VERSION} - Listo")
+        
+        update_btn = QPushButton("🔄 Buscar Actualización")
+        update_btn.setMaximumWidth(200)
+        update_btn.clicked.connect(self.check_for_updates)
+        status_bar.addPermanentWidget(update_btn)
+        
+        # Iniciar worker de actualización
+        # self.check_for_updates() # Desactivado temporalmente para no molestar en dev
+        
+        # Verificar consentimiento de privacidad (Primera ejecución)
+        self.check_privacy_consent()
     
     def create_menu_bar(self):
         menu_bar = self.menuBar()
